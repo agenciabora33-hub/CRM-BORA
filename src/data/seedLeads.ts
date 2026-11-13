@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: AgencySettings = {
   logoUrl: '',
   teamMembers: ['Sócio 1', 'Sócio 2'],
   activeUser: 'Sócio 1',
-  appsScriptUrl: '',
+  appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwh9NSDHsLAFm1liPAPT9hNKyv02lofiKW4juXsFD0I8DcBAOHI1jKWVRrmuvQQEnh5bQ/exec',
   lastSyncedAt: null,
 };
 
