@@ -35,7 +35,7 @@ function getOrCreateLeadsSheet() {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
-  } else if (sheet.getLastRow() === 0) {
+  } else if (sheet.getLastRow() === 0 || sheet.getLastColumn() < HEADERS.length) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
@@ -101,7 +101,8 @@ function doPost(e) {
   lock.waitLock(10000);
   try {
     var sheet = getOrCreateLeadsSheet();
-    var body = JSON.parse(e.postData.contents || '{}');
+    var rawBody = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
+    var body = JSON.parse(rawBody);
     var action = body.action;
 
     if (action === 'syncAll') {

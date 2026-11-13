@@ -13,7 +13,12 @@ import {
 import { AgencySettings } from '../types/crm';
 import { APPS_SCRIPT_CODE } from '../utils/appsScriptTemplate';
 import { formatDateBR } from '../utils/crmLogic';
-import { isValidAppsScriptUrl } from '../utils/sheetsSync';
+import { validateAppsScriptUrl } from '../utils/sheetsSync';
+
+interface SyncResult {
+  ok: boolean;
+  message: string;
+}
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -21,8 +26,8 @@ interface SettingsModalProps {
   isSyncing: boolean;
   onClose: () => void;
   onSaveSettings: (partial: Partial<AgencySettings>) => void;
-  onTestAndSync: (url: string) => Promise<boolean>;
-  onPushAll: () => Promise<boolean>;
+  onTestAndSync: (url: string) => Promise<SyncResult>;
+  onPushAll: (url?: string) => Promise<SyncResult>;
   onResetDemoData: () => void;
   onCopiedScript: () => void;
 }
@@ -46,6 +51,7 @@ export function SettingsModal({
   const [copiedCode, setCopiedCode] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [logoError, setLogoError] = useState('');
+  const [syncFeedback, setSyncFeedback] = useState<SyncResult | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,8 +61,11 @@ export function SettingsModal({
       setMember2(settings.teamMembers[1]);
       setAppsScriptUrl(settings.appsScriptUrl);
       setLogoError('');
+      setSyncFeedback(null);
     }
-  }, [isOpen, settings]);
+    // Reset local draft fields only when the modal is opened
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -101,7 +110,8 @@ export function SettingsModal({
     onClose();
   };
 
-  const urlIsValid = isValidAppsScriptUrl(appsScriptUrl);
+  const urlValidation = validateAppsScriptUrl(appsScriptUrl);
+  const urlIsValid = urlValidation.valid;
 
   const inputClass =
     'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none';
@@ -267,23 +277,46 @@ export function SettingsModal({
                     id="cfg-sheets-url"
                     type="url"
                     value={appsScriptUrl}
-                    onChange={(e) => setAppsScriptUrl(e.target.value)}
+                    onChange={(e) => {
+                      setAppsScriptUrl(e.target.value);
+                      if (syncFeedback) setSyncFeedback(null);
+                    }}
                     placeholder="https://script.google.com/macros/s/.../exec"
                     className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
                   />
                   <button
                     type="button"
                     disabled={!urlIsValid || isSyncing}
-                    onClick={() => onTestAndSync(appsScriptUrl)}
+                    onClick={async () => {
+                      const result = await onTestAndSync(appsScriptUrl);
+                      setSyncFeedback(result);
+                    }}
                     className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#2563EB] hover:bg-blue-500 disabled:opacity-50 px-3.5 py-2 text-xs font-medium text-white whitespace-nowrap cursor-pointer"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                     <span>Testar e Sincronizar</span>
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Deixe em branco para usar o Modo Local (dados salvos no navegador).
-                </p>
+                {appsScriptUrl.trim() && !urlValidation.valid ? (
+                  <p className="text-xs text-amber-300 mt-1.5">{urlValidation.reason}</p>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Deixe em branco para usar o Modo Local (dados salvos no navegador).
+                  </p>
+                )}
+
+                {syncFeedback && (
+                  <div
+                    role="status"
+                    className={`mt-2 rounded-md border px-3 py-2 text-xs leading-relaxed ${
+                      syncFeedback.ok
+                        ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-200'
+                        : 'border-red-500/40 bg-red-950/40 text-red-200'
+                    }`}
+                  >
+                    {syncFeedback.message}
+                  </div>
+                )}
               </div>
 
               {urlIsValid && (
@@ -294,7 +327,10 @@ export function SettingsModal({
                   <button
                     type="button"
                     disabled={isSyncing}
-                    onClick={() => onPushAll()}
+                    onClick={async () => {
+                      const result = await onPushAll(appsScriptUrl);
+                      setSyncFeedback(result);
+                    }}
                     className="text-xs font-medium text-blue-400 hover:underline whitespace-nowrap cursor-pointer"
                   >
                     Enviar todos os leads

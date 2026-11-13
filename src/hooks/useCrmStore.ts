@@ -265,25 +265,25 @@ export function useCrmStore() {
 
   const updateSettings = useCallback(
     (partial: Partial<AgencySettings>) => {
+      const nextMembers = partial.teamMembers ?? settings.teamMembers;
+      const oldMembers = settings.teamMembers;
+
+      // If partner names were renamed, update matching lead owners outside setSettings updater
+      if (partial.teamMembers) {
+        setLeads((currLeads) =>
+          currLeads.map((lead) => {
+            if (lead.owner === oldMembers[0] && nextMembers[0] !== oldMembers[0]) {
+              return { ...lead, owner: nextMembers[0] };
+            }
+            if (lead.owner === oldMembers[1] && nextMembers[1] !== oldMembers[1]) {
+              return { ...lead, owner: nextMembers[1] };
+            }
+            return lead;
+          })
+        );
+      }
+
       setSettings((prev) => {
-        const nextMembers = partial.teamMembers ?? prev.teamMembers;
-        const oldMembers = prev.teamMembers;
-
-        // If partner names were renamed, update matching lead owners smoothly
-        if (partial.teamMembers) {
-          setLeads((currLeads) =>
-            currLeads.map((lead) => {
-              if (lead.owner === oldMembers[0] && nextMembers[0] !== oldMembers[0]) {
-                return { ...lead, owner: nextMembers[0] };
-              }
-              if (lead.owner === oldMembers[1] && nextMembers[1] !== oldMembers[1]) {
-                return { ...lead, owner: nextMembers[1] };
-              }
-              return lead;
-            })
-          );
-        }
-
         const nextActive = nextMembers.includes(partial.activeUser ?? prev.activeUser)
           ? (partial.activeUser ?? prev.activeUser)
           : nextMembers[0];
@@ -297,37 +297,42 @@ export function useCrmStore() {
       });
       pushToast('Configurações salvas!', 'success');
     },
-    [pushToast]
+    [pushToast, settings.teamMembers]
   );
 
   const syncFromSheets = useCallback(
-    async (overrideUrl?: string): Promise<boolean> => {
+    async (overrideUrl?: string): Promise<{ ok: boolean; message: string }> => {
       const targetUrl = (overrideUrl ?? settings.appsScriptUrl).trim();
       if (!isValidAppsScriptUrl(targetUrl)) {
-        pushToast('Informe uma URL válida do Google Apps Script (https://script.google.com/...).', 'error');
-        return false;
+        const message = 'Informe uma URL válida do Google Apps Script (https://script.google.com/.../exec).';
+        pushToast(message, 'error');
+        return { ok: false, message };
       }
       setIsSyncing(true);
       try {
         const remoteLeads = await fetchLeadsFromSheets(targetUrl, settings.activeUser);
+        let successMessage: string;
         if (remoteLeads.length === 0 && leads.length > 0) {
           // Remote sheet is empty on first connection: upload local leads automatically
           await postToSheets(targetUrl, { action: 'syncAll', leads });
-          pushToast('Planilha conectada e leads iniciais enviados!', 'success');
+          successMessage = 'Planilha conectada e leads iniciais enviados!';
+          pushToast(successMessage, 'success');
         } else {
           setLeads(remoteLeads);
-          pushToast(`Sincronizado com Google Sheets (${remoteLeads.length} leads)`, 'success');
+          successMessage = `Sincronizado com Google Sheets (${remoteLeads.length} leads)`;
+          pushToast(successMessage, 'success');
         }
         setSettings((prev) => ({
           ...prev,
           appsScriptUrl: targetUrl,
           lastSyncedAt: new Date().toISOString(),
         }));
-        return true;
+        return { ok: true, message: successMessage };
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erro desconhecido';
-        pushToast(`Erro ao conectar planilha: ${msg}`, 'error');
-        return false;
+        const fullMessage = `Erro ao conectar planilha: ${msg}`;
+        pushToast(fullMessage, 'error');
+        return { ok: false, message: fullMessage };
       } finally {
         setIsSyncing(false);
       }
@@ -335,25 +340,36 @@ export function useCrmStore() {
     [leads, pushToast, settings.activeUser, settings.appsScriptUrl]
   );
 
-  const pushAllToSheets = useCallback(async (): Promise<boolean> => {
-    if (!isValidAppsScriptUrl(settings.appsScriptUrl)) {
-      pushToast('Configure a URL da planilha antes de enviar.', 'error');
-      return false;
-    }
-    setIsSyncing(true);
-    try {
-      await postToSheets(settings.appsScriptUrl, { action: 'syncAll', leads });
-      setSettings((prev) => ({ ...prev, lastSyncedAt: new Date().toISOString() }));
-      pushToast('Todos os leads locais enviados para a planilha!', 'success');
-      return true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao enviar';
-      pushToast(`Erro ao enviar dados: ${msg}`, 'error');
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [leads, pushToast, settings.appsScriptUrl]);
+  const pushAllToSheets = useCallback(
+    async (overrideUrl?: string): Promise<{ ok: boolean; message: string }> => {
+      const targetUrl = (overrideUrl ?? settings.appsScriptUrl).trim();
+      if (!isValidAppsScriptUrl(targetUrl)) {
+        const message = 'Configure a URL da planilha antes de enviar.';
+        pushToast(message, 'error');
+        return { ok: false, message };
+      }
+      setIsSyncing(true);
+      try {
+        await postToSheets(targetUrl, { action: 'syncAll', leads });
+        setSettings((prev) => ({
+          ...prev,
+          appsScriptUrl: targetUrl,
+          lastSyncedAt: new Date().toISOString(),
+        }));
+        const successMessage = 'Todos os leads locais enviados para a planilha!';
+        pushToast(successMessage, 'success');
+        return { ok: true, message: successMessage };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erro ao enviar';
+        const fullMessage = `Erro ao enviar dados: ${msg}`;
+        pushToast(fullMessage, 'error');
+        return { ok: false, message: fullMessage };
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [leads, pushToast, settings.appsScriptUrl]
+  );
 
   const resetDemoData = useCallback(() => {
     const fresh = createSeedLeads();
