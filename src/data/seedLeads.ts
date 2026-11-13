@@ -10,8 +10,8 @@ function offsetIsoDate(daysOffset: number): string {
 }
 
 export const DEFAULT_SETTINGS: AgencySettings = {
-  companyName: 'Sua Agência',
-  logoUrl: '',
+  companyName: 'Bora CRM',
+  logoUrl: '/logo.jpg',
   teamMembers: ['Sócio 1', 'Sócio 2'],
   activeUser: 'Sócio 1',
   appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwh9NSDHsLAFm1liPAPT9hNKyv02lofiKW4juXsFD0I8DcBAOHI1jKWVRrmuvQQEnh5bQ/exec',
