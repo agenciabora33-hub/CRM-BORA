@@ -383,7 +383,7 @@ export function SettingsModal({
                     Apague o código padrão, cole o código copiado de <code className="font-mono text-slate-200">Code.gs</code> e clique em Salvar.
                   </li>
                   <li>
-                    Clique em <strong className="text-slate-200">Implantar &gt; Nova implantação &gt; App da Web</strong>, configure <strong className="text-slate-200">Executar como: Eu</strong> e <strong className="text-slate-200">Quem pode acessar: Qualquer pessoa</strong>.
+                    Clique em <strong className="text-slate-200">Implantar &gt; Nova implantação &gt; App da Web</strong>, configure <strong className="text-slate-200">Executar como: Eu</strong> e <strong className="text-slate-200">Quem pode acessar: Qualquer pessoa</strong>. <span className="text-slate-500">(Se atualizar o código depois, use Gerenciar implantações &gt; Editar &gt; Nova versão.)</span>
                   </li>
                   <li>
                     Copie a <strong className="text-slate-200">URL do App da Web</strong> gerada, cole no campo acima e clique em <strong className="text-slate-200">Testar e Sincronizar</strong>.

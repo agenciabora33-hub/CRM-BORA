@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidAppsScriptUrl, validateAppsScriptUrl } from './sheetsSync';
+import { APPS_SCRIPT_CODE } from './appsScriptTemplate';
+import { formatDirectFetchError, isValidAppsScriptUrl, validateAppsScriptUrl } from './sheetsSync';
 
 test('validateAppsScriptUrl accepts valid /exec Apps Script URLs', () => {
   const res = validateAppsScriptUrl('https://script.google.com/macros/s/AKfycbx123/exec');
@@ -22,4 +23,16 @@ test('validateAppsScriptUrl rejects /dev test URLs with clear Portuguese message
   if (!res.valid) {
     assert.match(res.reason, /\/exec/);
   }
+});
+
+test('formatDirectFetchError never exposes raw Failed to fetch text', () => {
+  const err = formatDirectFetchError(new TypeError('Failed to fetch'));
+  assert.doesNotMatch(err.message, /Failed to fetch/);
+  assert.match(err.message, /Qualquer pessoa/);
+});
+
+test('APPS_SCRIPT_CODE supports JSONP callback and header migration', () => {
+  assert.match(APPS_SCRIPT_CODE, /e\.parameter\.callback/);
+  assert.match(APPS_SCRIPT_CODE, /ContentService\.MimeType\.JAVASCRIPT/);
+  assert.match(APPS_SCRIPT_CODE, /missingHeaders/);
 });

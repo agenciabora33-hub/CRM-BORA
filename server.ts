@@ -81,6 +81,10 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '4mb' }));
 
+  app.get('/api/health', (_req, res) => {
+    res.json({ ok: true });
+  });
+
   app.post('/api/sheets-proxy', async (req, res) => {
     const body = (req.body || {}) as ProxyRequestBody;
     const rawUrl = typeof body.url === 'string' ? body.url : '';
@@ -96,6 +100,7 @@ async function startServer() {
       const fetchOptions: RequestInit = {
         method,
         redirect: 'follow',
+        signal: AbortSignal.timeout(25000),
         headers:
           method === 'POST'
             ? { 'Content-Type': 'text/plain;charset=utf-8' }
@@ -116,7 +121,12 @@ async function startServer() {
         return;
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro de rede ao acessar o Google Apps Script.';
+      const isTimeout = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+      const msg = isTimeout
+        ? 'Tempo limite excedido (25s) ao aguardar o Google Apps Script'
+        : err instanceof Error
+          ? err.message
+          : 'Erro de rede ao acessar o Google Apps Script.';
       res.status(502).json({
         ok: false,
         error: `Não foi possível conectar ao Google Apps Script (${msg}). Verifique sua conexão e a URL informada.`,
@@ -130,11 +140,26 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    app.use((req, res, next) => {
+      if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+        res.setHeader('Cache-Control', 'no-store');
+      }
+      next();
+    });
     app.use(vite.middlewares);
   } else {
     const distDir = path.resolve(__dirname, 'dist');
-    app.use(express.static(distDir));
+    app.use(
+      express.static(distDir, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-store');
+          }
+        },
+      })
+    );
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }

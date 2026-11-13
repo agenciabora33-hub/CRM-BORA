@@ -35,17 +35,39 @@ function getOrCreateLeadsSheet() {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
-  } else if (sheet.getLastRow() === 0 || sheet.getLastColumn() < HEADERS.length) {
+    return { sheet: sheet, headers: HEADERS.slice() };
+  }
+
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+
+  if (lastRow === 0 || lastCol === 0) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
+    return { sheet: sheet, headers: HEADERS.slice() };
   }
 
-  return sheet;
+  var currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
+    return String(h || '').trim();
+  });
+
+  var missingHeaders = HEADERS.filter(function (h) {
+    return currentHeaders.indexOf(h) === -1;
+  });
+
+  if (missingHeaders.length > 0) {
+    var startCol = currentHeaders.length + 1;
+    sheet.getRange(1, startCol, 1, missingHeaders.length).setValues([missingHeaders]);
+    sheet.getRange(1, startCol, 1, missingHeaders.length).setFontWeight('bold');
+    currentHeaders = currentHeaders.concat(missingHeaders);
+  }
+
+  return { sheet: sheet, headers: currentHeaders };
 }
 
-function leadToRow(lead) {
-  return HEADERS.map(function (key) {
+function leadToRow(lead, activeHeaders) {
+  return activeHeaders.map(function (key) {
     var val = lead[key];
     if (key === 'callCount' || key === 'estimatedValue') {
       return Number(val) || 0;
@@ -54,10 +76,11 @@ function leadToRow(lead) {
   });
 }
 
-function rowToLead(row) {
+function rowToLead(row, activeHeaders) {
   var obj = {};
-  for (var i = 0; i < HEADERS.length; i++) {
-    var key = HEADERS[i];
+  for (var i = 0; i < activeHeaders.length; i++) {
+    var key = activeHeaders[i];
+    if (!key) continue;
     var val = row[i];
     if (key === 'callCount' || key === 'estimatedValue') {
       obj[key] = Number(val) || 0;
@@ -72,27 +95,38 @@ function rowToLead(row) {
   return obj;
 }
 
-function jsonResponse(payload) {
+function jsonResponse(payload, callbackName) {
+  var json = JSON.stringify(payload);
+  if (callbackName && /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/.test(String(callbackName))) {
+    return ContentService
+      .createTextOutput(callbackName + '(' + json + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
   return ContentService
-    .createTextOutput(JSON.stringify(payload))
+    .createTextOutput(json)
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet(e) {
+  var callback = (e && e.parameter && e.parameter.callback) ? e.parameter.callback : '';
   try {
-    var sheet = getOrCreateLeadsSheet();
+    var info = getOrCreateLeadsSheet();
+    var sheet = info.sheet;
+    var activeHeaders = info.headers;
     var lastRow = sheet.getLastRow();
     if (lastRow <= 1) {
-      return jsonResponse({ ok: true, leads: [] });
+      return jsonResponse({ ok: true, leads: [] }, callback);
     }
-    var values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    var values = sheet.getRange(2, 1, lastRow - 1, activeHeaders.length).getValues();
+    var idIndex = activeHeaders.indexOf('id');
+    var checkCol = idIndex >= 0 ? idIndex : 0;
     var leads = values
-      .filter(function (row) { return String(row[0] || '').trim() !== ''; })
-      .map(rowToLead);
+      .filter(function (row) { return String(row[checkCol] || '').trim() !== ''; })
+      .map(function (row) { return rowToLead(row, activeHeaders); });
 
-    return jsonResponse({ ok: true, leads: leads });
+    return jsonResponse({ ok: true, leads: leads }, callback);
   } catch (err) {
-    return jsonResponse({ ok: false, error: err.message });
+    return jsonResponse({ ok: false, error: err.message }, callback);
   }
 }
 
@@ -100,7 +134,9 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var sheet = getOrCreateLeadsSheet();
+    var info = getOrCreateLeadsSheet();
+    var sheet = info.sheet;
+    var activeHeaders = info.headers;
     var rawBody = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
     var body = JSON.parse(rawBody);
     var action = body.action;
@@ -109,11 +145,11 @@ function doPost(e) {
       var allLeads = Array.isArray(body.leads) ? body.leads : [];
       var lastRow = sheet.getLastRow();
       if (lastRow > 1) {
-        sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
+        sheet.getRange(2, 1, lastRow - 1, activeHeaders.length).clearContent();
       }
       if (allLeads.length > 0) {
-        var rows = allLeads.map(leadToRow);
-        sheet.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
+        var rows = allLeads.map(function (lead) { return leadToRow(lead, activeHeaders); });
+        sheet.getRange(2, 1, rows.length, activeHeaders.length).setValues(rows);
       }
       return jsonResponse({ ok: true, count: allLeads.length });
     }
@@ -123,7 +159,7 @@ function doPost(e) {
       if (!newLead || !newLead.id) {
         return jsonResponse({ ok: false, error: 'Lead inválido' });
       }
-      sheet.appendRow(leadToRow(newLead));
+      sheet.appendRow(leadToRow(newLead, activeHeaders));
       return jsonResponse({ ok: true, id: newLead.id });
     }
 
@@ -132,25 +168,29 @@ function doPost(e) {
       if (!updatedLead || !updatedLead.id) {
         return jsonResponse({ ok: false, error: 'ID ausente' });
       }
+      var idIdx = activeHeaders.indexOf('id');
+      var idCol = idIdx >= 0 ? idIdx + 1 : 1;
       var rowCount = sheet.getLastRow();
       if (rowCount > 1) {
-        var ids = sheet.getRange(2, 1, rowCount - 1, 1).getValues();
+        var ids = sheet.getRange(2, idCol, rowCount - 1, 1).getValues();
         for (var i = 0; i < ids.length; i++) {
           if (String(ids[i][0]) === String(updatedLead.id)) {
-            sheet.getRange(i + 2, 1, 1, HEADERS.length).setValues([leadToRow(updatedLead)]);
+            sheet.getRange(i + 2, 1, 1, activeHeaders.length).setValues([leadToRow(updatedLead, activeHeaders)]);
             return jsonResponse({ ok: true, id: updatedLead.id });
           }
         }
       }
-      sheet.appendRow(leadToRow(updatedLead));
+      sheet.appendRow(leadToRow(updatedLead, activeHeaders));
       return jsonResponse({ ok: true, id: updatedLead.id, inserted: true });
     }
 
     if (action === 'delete') {
       var targetId = body.id;
+      var delIdIdx = activeHeaders.indexOf('id');
+      var delIdCol = delIdIdx >= 0 ? delIdIdx + 1 : 1;
       var totalRows = sheet.getLastRow();
       if (totalRows > 1) {
-        var idValues = sheet.getRange(2, 1, totalRows - 1, 1).getValues();
+        var idValues = sheet.getRange(2, delIdCol, totalRows - 1, 1).getValues();
         for (var j = 0; j < idValues.length; j++) {
           if (String(idValues[j][0]) === String(targetId)) {
             sheet.deleteRow(j + 2);
