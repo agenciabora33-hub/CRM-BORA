@@ -67,6 +67,19 @@ export function buildWhatsAppUrl(phone: string): string | null {
   return `https://wa.me/${normalized}`;
 }
 
+export function normalizeExternalUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('@')) {
+    return `https://instagram.com/${trimmed.slice(1)}`;
+  }
+  if (trimmed.includes('.')) {
+    return `https://${trimmed}`;
+  }
+  return null;
+}
+
 export function appendDatedNote(existingNotes: string, entry: string, date: Date = new Date()): string {
   const trimmed = entry.trim();
   if (!trimmed) return existingNotes;
@@ -108,6 +121,11 @@ export function filterLeads(
         lead.niche,
         lead.phone,
         lead.websiteOrSocial,
+        lead.websiteUrl,
+        lead.googleBusinessUrl,
+        lead.instagramUrl,
+        lead.facebookUrl,
+        lead.otherSocialUrl,
         lead.notes,
         lead.owner,
       ]
@@ -212,7 +230,12 @@ export function generateCsvContent(leads: Lead[]): string {
     'Empresa',
     'Decisor',
     'Telefone',
-    'Site / Instagram',
+    'Resumo Presenca Digital',
+    'URL do Site',
+    'Google Meu Negocio',
+    'Instagram',
+    'Facebook',
+    'Outras Midias',
     'Nicho',
     'Etapa',
     'Responsavel',
@@ -237,6 +260,11 @@ export function generateCsvContent(leads: Lead[]): string {
       l.contactName,
       l.phone,
       l.websiteOrSocial,
+      l.websiteUrl,
+      l.googleBusinessUrl,
+      l.instagramUrl,
+      l.facebookUrl,
+      l.otherSocialUrl,
       l.niche,
       l.status,
       l.owner,
@@ -276,6 +304,11 @@ export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOw
     contactName: String(raw.contactName || ''),
     phone: String(raw.phone || ''),
     websiteOrSocial: String(raw.websiteOrSocial || ''),
+    websiteUrl: String(raw.websiteUrl || ''),
+    googleBusinessUrl: String(raw.googleBusinessUrl || ''),
+    instagramUrl: String(raw.instagramUrl || ''),
+    facebookUrl: String(raw.facebookUrl || ''),
+    otherSocialUrl: String(raw.otherSocialUrl || ''),
     niche: String(raw.niche || 'Outro'),
     status: validStatus,
     callCount: Math.max(0, Number(raw.callCount) || 0),

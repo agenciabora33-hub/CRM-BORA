@@ -49,7 +49,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col">
+    <div className="min-h-screen bg-[#0B1120] text-slate-100 flex flex-col">
       <Header
         activeView={activeView}
         onChangeView={setActiveView}

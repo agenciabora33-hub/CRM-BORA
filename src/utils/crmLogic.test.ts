@@ -9,6 +9,7 @@ import {
   formatDateBR,
   generateCsvContent,
   getFollowUpUrgency,
+  normalizeExternalUrl,
   normalizeLeadFromRemote,
 } from './crmLogic';
 import { Lead } from '../types/crm';
@@ -23,6 +24,11 @@ const sampleLeads: Lead[] = [
     contactName: 'Dr. João',
     phone: '(11) 99999-1234',
     websiteOrSocial: '@clinicavida',
+    websiteUrl: 'https://clinicavida.com.br',
+    googleBusinessUrl: '',
+    instagramUrl: 'https://instagram.com/clinicavida',
+    facebookUrl: '',
+    otherSocialUrl: '',
     niche: 'Clínica',
     status: 'Reunião / Proposta',
     callCount: 3,
@@ -39,6 +45,11 @@ const sampleLeads: Lead[] = [
     contactName: 'Mariana',
     phone: '5511988887777',
     websiteOrSocial: 'Não possui site',
+    websiteUrl: '',
+    googleBusinessUrl: 'https://maps.google.com/?q=Bistro+Central',
+    instagramUrl: '',
+    facebookUrl: '',
+    otherSocialUrl: '',
     niche: 'Restaurante',
     status: 'Contato Feito',
     callCount: 2,
@@ -55,6 +66,11 @@ const sampleLeads: Lead[] = [
     contactName: 'Dra. Paula',
     phone: '(21) 98111-2233',
     websiteOrSocial: 'site antigo',
+    websiteUrl: '',
+    googleBusinessUrl: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    otherSocialUrl: '',
     niche: 'Advocacia',
     status: 'Fechado (Ganho)',
     callCount: 4,
@@ -128,4 +144,13 @@ test('generateCsvContent and normalizeLeadFromRemote preserve lead fields', () =
   assert.equal(normalized.callCount, 5);
   assert.equal(normalized.status, 'Para Prospectar');
   assert.equal(normalized.owner, 'Ana');
+  assert.equal(normalized.websiteUrl, '');
+  assert.equal(normalized.googleBusinessUrl, '');
+});
+
+test('normalizeExternalUrl handles full URLs, bare domains, and @handles', () => {
+  assert.equal(normalizeExternalUrl('https://site.com.br'), 'https://site.com.br');
+  assert.equal(normalizeExternalUrl('minhaempresa.com.br'), 'https://minhaempresa.com.br');
+  assert.equal(normalizeExternalUrl('@agenciabora'), 'https://instagram.com/agenciabora');
+  assert.equal(normalizeExternalUrl('   '), null);
 });

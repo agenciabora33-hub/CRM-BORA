@@ -18,6 +18,11 @@ export interface Lead {
   contactName: string;
   phone: string;
   websiteOrSocial: string;
+  websiteUrl: string;
+  googleBusinessUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  otherSocialUrl: string;
   niche: string;
   status: LeadStatus;
   callCount: number;

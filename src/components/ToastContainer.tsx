@@ -24,33 +24,33 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
 
         const accentClasses =
           toast.variant === 'error'
-            ? 'border-[#DC2626]/30 bg-white text-[#0F172A]'
+            ? 'border-red-500/40 bg-slate-900 text-slate-100'
             : toast.variant === 'info'
-              ? 'border-[#2563EB]/25 bg-white text-[#0F172A]'
-              : 'border-[#16A34A]/30 bg-white text-[#0F172A]';
+              ? 'border-blue-500/40 bg-slate-900 text-slate-100'
+              : 'border-emerald-500/40 bg-slate-900 text-slate-100';
 
         const iconColor =
           toast.variant === 'error'
-            ? 'text-[#DC2626]'
+            ? 'text-red-400'
             : toast.variant === 'info'
-              ? 'text-[#2563EB]'
-              : 'text-[#16A34A]';
+              ? 'text-blue-400'
+              : 'text-emerald-400';
 
         return (
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto flex items-center gap-3 rounded-lg border px-3.5 py-2.5 shadow-sm transition-all duration-150 ${accentClasses}`}
+            className={`pointer-events-auto flex items-center gap-3 rounded-lg border px-3.5 py-2.5 shadow-lg transition-all duration-150 ${accentClasses}`}
           >
             <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
-            <p className="text-sm font-medium text-[#0F172A] flex-1 leading-snug">
+            <p className="text-sm font-medium text-slate-100 flex-1 leading-snug">
               {toast.message}
             </p>
             <button
               type="button"
               onClick={() => onDismiss(toast.id)}
               aria-label="Fechar notificação"
-              className="rounded p-1 text-[#64748B] hover:bg-slate-100 hover:text-[#0F172A] transition-colors"
+              className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>

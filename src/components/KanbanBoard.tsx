@@ -15,11 +15,11 @@ interface KanbanBoardProps {
 
 const STAGE_DOT_COLORS: Record<LeadStatus, string> = {
   'Para Prospectar': 'bg-slate-400',
-  'Contato Feito': 'bg-[#2563EB]',
-  'Interesse / Conversa': 'bg-indigo-500',
-  'Reunião / Proposta': 'bg-[#D97706]',
-  'Fechado (Ganho)': 'bg-[#16A34A]',
-  'Perdido': 'bg-slate-300',
+  'Contato Feito': 'bg-blue-400',
+  'Interesse / Conversa': 'bg-indigo-400',
+  'Reunião / Proposta': 'bg-amber-400',
+  'Fechado (Ganho)': 'bg-emerald-400',
+  'Perdido': 'bg-slate-600',
 };
 
 export function KanbanBoard({
@@ -66,23 +66,23 @@ export function KanbanBoard({
       {/* Compact Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-lg font-semibold text-[#0F172A]">
+          <h1 className="font-display text-lg font-semibold text-slate-100">
             Funil de Prospecção
           </h1>
-          <p className="text-xs text-[#64748B]">
+          <p className="text-xs text-slate-400">
             Arraste os cards entre colunas ou use o seletor rápido para atualizar a etapa.
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] rounded-lg p-1">
-          <Filter className="h-3.5 w-3.5 text-[#64748B] ml-2" />
+        <div className="flex items-center gap-1.5 bg-[#0F172A] border border-slate-800 rounded-lg p-1">
+          <Filter className="h-3.5 w-3.5 text-slate-400 ml-2" />
           <button
             type="button"
             onClick={() => setOwnerFilter('all')}
-            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
               ownerFilter === 'all'
                 ? 'bg-[#2563EB] text-white'
-                : 'text-[#64748B] hover:text-[#0F172A]'
+                : 'text-slate-400 hover:text-slate-100'
             }`}
           >
             Todos ({leads.length})
@@ -94,10 +94,10 @@ export function KanbanBoard({
                 key={member}
                 type="button"
                 onClick={() => setOwnerFilter(member)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
                   ownerFilter === member
                     ? 'bg-[#2563EB] text-white'
-                    : 'text-[#64748B] hover:text-[#0F172A]'
+                    : 'text-slate-400 hover:text-slate-100'
                 }`}
               >
                 {member} ({count})
@@ -126,8 +126,8 @@ export function KanbanBoard({
               onDrop={(e) => handleDrop(e, status)}
               className={`w-[268px] sm:w-[272px] shrink-0 rounded-xl border p-3 flex flex-col gap-3 transition-colors duration-150 ${
                 isDropTarget
-                  ? 'bg-blue-50/70 border-[#2563EB]/50'
-                  : 'bg-[#F1F5F9]/80 border-[#E2E8F0]'
+                  ? 'bg-blue-950/40 border-blue-500/60'
+                  : 'bg-[#0F172A] border-slate-800'
               }`}
             >
               {/* Column Header */}
@@ -138,17 +138,17 @@ export function KanbanBoard({
                       aria-hidden="true"
                       className={`h-2 w-2 rounded-xs shrink-0 ${STAGE_DOT_COLORS[status]}`}
                     />
-                    <h2 className="font-display text-sm font-semibold text-[#0F172A] truncate">
+                    <h2 className="font-display text-sm font-semibold text-slate-100 truncate">
                       {status}
                     </h2>
                   </div>
-                  <p className="font-mono tabular-nums text-xs text-[#64748B] mt-0.5 pl-4">
+                  <p className="font-mono tabular-nums text-xs text-slate-400 mt-0.5 pl-4">
                     {formatCurrencyBRL(columnTotalValue)}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="font-mono tabular-nums text-xs font-semibold text-[#64748B] bg-white border border-[#E2E8F0] rounded px-1.5 py-0.5">
+                  <span className="font-mono tabular-nums text-xs font-semibold text-slate-300 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5">
                     {columnLeads.length}
                   </span>
                   <button
@@ -156,7 +156,7 @@ export function KanbanBoard({
                     onClick={() => onOpenNewProspect(status)}
                     aria-label={`Adicionar prospect em ${status}`}
                     title={`Adicionar prospect em ${status}`}
-                    className="p-1 rounded hover:bg-white text-[#64748B] hover:text-[#2563EB] transition-colors cursor-pointer"
+                    className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -166,8 +166,8 @@ export function KanbanBoard({
               {/* Cards Stack */}
               <div className="flex flex-col gap-2.5 min-h-[120px]">
                 {columnLeads.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-white/40 px-3 py-6 text-center">
-                    <p className="text-xs text-[#64748B]">Nenhum lead nesta etapa</p>
+                  <div className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-3 py-6 text-center">
+                    <p className="text-xs text-slate-500">Nenhum lead nesta etapa</p>
                   </div>
                 ) : (
                   columnLeads.map((lead) => (

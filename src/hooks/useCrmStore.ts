@@ -12,7 +12,16 @@ function loadInitialLeads(): Lead[] {
     const raw = localStorage.getItem(LEADS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => ({
+          ...item,
+          websiteUrl: item.websiteUrl ?? '',
+          googleBusinessUrl: item.googleBusinessUrl ?? '',
+          instagramUrl: item.instagramUrl ?? '',
+          facebookUrl: item.facebookUrl ?? '',
+          otherSocialUrl: item.otherSocialUrl ?? '',
+        }));
+      }
     }
   } catch {
     // fallback to seed
@@ -55,6 +64,11 @@ export interface NewLeadInput {
   phone: string;
   contactName: string;
   websiteOrSocial: string;
+  websiteUrl: string;
+  googleBusinessUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  otherSocialUrl: string;
   niche: string;
   status: LeadStatus;
   owner: string;
@@ -159,6 +173,11 @@ export function useCrmStore() {
         contactName: input.contactName.trim(),
         phone: input.phone.trim(),
         websiteOrSocial: input.websiteOrSocial.trim(),
+        websiteUrl: input.websiteUrl.trim(),
+        googleBusinessUrl: input.googleBusinessUrl.trim(),
+        instagramUrl: input.instagramUrl.trim(),
+        facebookUrl: input.facebookUrl.trim(),
+        otherSocialUrl: input.otherSocialUrl.trim(),
         niche: input.niche.trim() || 'Outro',
         status: input.status,
         callCount: 0,
