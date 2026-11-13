@@ -110,7 +110,7 @@ function readRemoteSettings() {
     try {
       var parsed = JSON.parse(map.teamMembers);
       if (Array.isArray(parsed) && parsed.length === 2) {
-        result.teamMembers = [String(parsed[0] || 'Sócio 1'), String(parsed[1] || 'Sócio 2')];
+        result.teamMembers = [String(parsed[0] || 'Cláudio'), String(parsed[1] || 'Elis')];
       }
     } catch (err) {
       // ignore invalid teamMembers json
@@ -130,7 +130,7 @@ function writeRemoteSettings(settings) {
   var pairs = [
     ['companyName', settings.companyName !== undefined ? String(settings.companyName) : 'Bora CRM'],
     ['logoUrl', logoStr],
-    ['teamMembers', JSON.stringify(Array.isArray(settings.teamMembers) && settings.teamMembers.length === 2 ? settings.teamMembers : ['Sócio 1', 'Sócio 2'])],
+    ['teamMembers', JSON.stringify(Array.isArray(settings.teamMembers) && settings.teamMembers.length === 2 ? settings.teamMembers : ['Cláudio', 'Elis'])],
     ['updatedAt', new Date().toISOString()]
   ];
 

@@ -9,16 +9,16 @@ import {
   RemoteAgencySettings,
   SyncActionPayload,
 } from '../utils/sheetsSync';
+import {
+  CURRENT_BRAND_VERSION,
+  PersistedAgencySettings,
+  resolveInitialSettings,
+} from '../utils/settingsMigration';
 
 const LEADS_STORAGE_KEY = 'prospeccao_crm_leads_v1';
 const SETTINGS_STORAGE_KEY = 'prospeccao_crm_settings_v1';
 const AUTO_POLL_INTERVAL_MS = 12000;
 const MUTATION_GRACE_MS = 4500;
-
-interface StoredAgencySettings extends AgencySettings {
-  logoRemoved?: boolean;
-  brandVersion?: number;
-}
 
 function loadInitialLeads(): Lead[] {
   try {
@@ -42,54 +42,12 @@ function loadInitialLeads(): Lead[] {
   return createSeedLeads();
 }
 
-function loadInitialSettings(): AgencySettings {
+function loadInitialSettingsState() {
   try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<StoredAgencySettings>;
-      const members: [string, string] =
-        Array.isArray(parsed.teamMembers) && parsed.teamMembers.length === 2
-          ? [
-              String(parsed.teamMembers[0] || 'Sócio 1'),
-              String(parsed.teamMembers[1] || 'Sócio 2'),
-            ]
-          : DEFAULT_SETTINGS.teamMembers;
-
-      const isLegacyBrand = !parsed.brandVersion || parsed.brandVersion < 2;
-      const rawName = (parsed.companyName || '').trim();
-      const companyName =
-        !rawName || (isLegacyBrand && rawName === 'Sua Agência')
-          ? DEFAULT_SETTINGS.companyName
-          : rawName;
-
-      const logoUrl =
-        parsed.logoUrl && parsed.logoUrl.trim()
-          ? parsed.logoUrl.trim()
-          : parsed.logoRemoved
-            ? ''
-            : DEFAULT_SETTINGS.logoUrl;
-
-      const appsScriptUrl =
-        parsed.appsScriptUrl && parsed.appsScriptUrl.trim()
-          ? parsed.appsScriptUrl.trim()
-          : DEFAULT_SETTINGS.appsScriptUrl;
-
-      return {
-        companyName,
-        logoUrl,
-        teamMembers: members,
-        activeUser:
-          parsed.activeUser && members.includes(parsed.activeUser)
-            ? parsed.activeUser
-            : members[0],
-        appsScriptUrl,
-        lastSyncedAt: parsed.lastSyncedAt || null,
-      };
-    }
+    return resolveInitialSettings(localStorage.getItem(SETTINGS_STORAGE_KEY), DEFAULT_SETTINGS);
   } catch {
-    // fallback to defaults
+    return { settings: DEFAULT_SETTINGS, partnerConfirmed: false };
   }
-  return DEFAULT_SETTINGS;
 }
 
 export interface NewLeadInput {
@@ -133,7 +91,11 @@ function mergeRemoteSettings(
 
 export function useCrmStore() {
   const [leads, setLeads] = useState<Lead[]>(loadInitialLeads);
-  const [settings, setSettings] = useState<AgencySettings>(loadInitialSettings);
+  const [initialSettingsState] = useState(loadInitialSettingsState);
+  const [settings, setSettings] = useState<AgencySettings>(initialSettingsState.settings);
+  const [partnerConfirmed, setPartnerConfirmed] = useState<boolean>(
+    initialSettingsState.partnerConfirmed
+  );
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -163,16 +125,17 @@ export function useCrmStore() {
 
   useEffect(() => {
     try {
-      const toStore: StoredAgencySettings = {
+      const toStore: PersistedAgencySettings = {
         ...settings,
-        brandVersion: 2,
+        brandVersion: CURRENT_BRAND_VERSION,
         logoRemoved: settings.logoUrl === '',
+        partnerConfirmed,
       };
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(toStore));
     } catch {
       // ignore storage quota errors
     }
-  }, [settings]);
+  }, [partnerConfirmed, settings]);
 
   const syncInBackground = useCallback(
     async (url: string, payload: SyncActionPayload) => {
@@ -353,7 +316,17 @@ export function useCrmStore() {
 
   const setActiveUser = useCallback((user: string) => {
     setSettings((prev) => ({ ...prev, activeUser: user }));
+    setPartnerConfirmed(true);
   }, []);
+
+  const confirmActivePartner = useCallback(
+    (partner: string) => {
+      setSettings((prev) => ({ ...prev, activeUser: partner }));
+      setPartnerConfirmed(true);
+      pushToast(`Operando como ${partner}!`, 'success');
+    },
+    [pushToast]
+  );
 
   const updateSettings = useCallback(
     (partial: Partial<AgencySettings>) => {
@@ -559,6 +532,7 @@ export function useCrmStore() {
   return {
     leads,
     settings,
+    partnerConfirmed,
     isConnected,
     isSyncing,
     toasts,
@@ -570,6 +544,7 @@ export function useCrmStore() {
     incrementCall,
     deleteLead,
     setActiveUser,
+    confirmActivePartner,
     updateSettings,
     syncFromSheets,
     pushAllToSheets,

@@ -92,8 +92,8 @@ export function normalizeRemoteSettings(raw: unknown): RemoteAgencySettings | nu
   }
 
   if (Array.isArray(obj.teamMembers) && obj.teamMembers.length === 2) {
-    const m1 = String(obj.teamMembers[0] ?? '').trim() || 'Sócio 1';
-    const m2 = String(obj.teamMembers[1] ?? '').trim() || 'Sócio 2';
+    const m1 = String(obj.teamMembers[0] ?? '').trim() || 'Cláudio';
+    const m2 = String(obj.teamMembers[1] ?? '').trim() || 'Elis';
     normalized.teamMembers = [m1, m2];
     hasData = true;
   }

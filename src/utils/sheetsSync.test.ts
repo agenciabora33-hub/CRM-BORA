@@ -50,7 +50,7 @@ test('normalizeRemoteSettings validates and normalizes shared agency settings sa
   assert.deepEqual(normalized, {
     companyName: 'Bora Digital',
     logoUrl: '/logo.jpg',
-    teamMembers: ['Gabriel', 'Sócio 2'],
+    teamMembers: ['Gabriel', 'Elis'],
     updatedAt: '2026-11-13T10:00:00.000Z',
   });
 });

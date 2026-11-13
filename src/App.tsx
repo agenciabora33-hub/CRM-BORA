@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
 import { LeadDetailDrawer } from './components/LeadDetailDrawer';
 import { NewProspectModal } from './components/NewProspectModal';
+import { PartnerSelectModal } from './components/PartnerSelectModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TableView } from './components/TableView';
 import { ToastContainer } from './components/ToastContainer';
@@ -14,6 +15,7 @@ export default function App() {
   const {
     leads,
     settings,
+    partnerConfirmed,
     isConnected,
     isSyncing,
     toasts,
@@ -25,6 +27,7 @@ export default function App() {
     incrementCall,
     deleteLead,
     setActiveUser,
+    confirmActivePartner,
     updateSettings,
     syncFromSheets,
     pushAllToSheets,
@@ -123,6 +126,15 @@ export default function App() {
         onPushAll={pushAllToSheets}
         onResetDemoData={resetDemoData}
         onCopiedScript={() => pushToast('Código Code.gs copiado para a área de transferência!', 'info')}
+      />
+
+      <PartnerSelectModal
+        isOpen={!partnerConfirmed}
+        companyName={settings.companyName}
+        logoUrl={settings.logoUrl}
+        teamMembers={settings.teamMembers}
+        initialSelected={settings.activeUser}
+        onConfirm={confirmActivePartner}
       />
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

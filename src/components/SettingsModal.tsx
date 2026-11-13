@@ -125,8 +125,8 @@ export function SettingsModal({
 
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
-    const m1 = member1.trim() || 'Sócio 1';
-    const m2 = member2.trim() || 'Sócio 2';
+    const m1 = member1.trim() || 'Cláudio';
+    const m2 = member2.trim() || 'Elis';
     onSaveSettings({
       companyName: companyName.trim() || 'Bora CRM',
       logoUrl: logoUrl.trim(),
