@@ -82,16 +82,16 @@ export function TableView({
       {/* Header + Export */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-lg font-semibold text-slate-100">
+          <h1 className="font-display text-xl font-bold tracking-tight text-zinc-50">
             Lista de Prospects
           </h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-zinc-400">
             Exibindo{' '}
-            <span className="font-mono tabular-nums font-medium text-slate-100">
+            <span className="font-mono tabular-nums font-medium text-zinc-100">
               {filteredLeads.length}
             </span>{' '}
             de{' '}
-            <span className="font-mono tabular-nums font-medium text-slate-100">
+            <span className="font-mono tabular-nums font-medium text-zinc-100">
               {leads.length}
             </span>{' '}
             leads cadastrados.
@@ -101,24 +101,24 @@ export function TableView({
         <button
           type="button"
           onClick={handleExportCsv}
-          className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-[#18181B] px-3 py-2 text-xs font-medium text-zinc-100 hover:bg-zinc-800 hover:border-zinc-700 transition-colors whitespace-nowrap cursor-pointer"
         >
-          <Download className="h-3.5 w-3.5 text-slate-400" />
+          <Download className="h-3.5 w-3.5 text-[#F97316]" />
           <span>Exportar CSV</span>
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-xl border border-slate-800 bg-[#0F172A] p-3 flex flex-wrap items-center gap-2.5">
+      <div className="rounded-xl border border-zinc-800 bg-[#111114] p-3 flex flex-wrap items-center gap-2.5">
         <div className="relative flex-1 min-w-[220px]">
-          <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="h-4 w-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por empresa, contato, nicho, links, telefone ou observação..."
             aria-label="Buscar prospects"
-            className="w-full rounded-md border border-slate-700 bg-slate-950 pl-9 pr-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-zinc-800 bg-[#09090B] pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none"
           />
         </div>
 
@@ -126,7 +126,7 @@ export function TableView({
           aria-label="Filtrar por responsável"
           value={ownerFilter}
           onChange={(e) => setOwnerFilter(e.target.value)}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none"
+          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-sm text-zinc-100 focus:border-orange-500 focus:outline-none"
         >
           <option value="all">Todos os responsáveis</option>
           {teamMembers.map((member) => (
@@ -140,7 +140,7 @@ export function TableView({
           aria-label="Filtrar por etapa do funil"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:outline-none"
+          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-sm text-zinc-100 focus:border-orange-500 focus:outline-none"
         >
           <option value="all">Todas as etapas</option>
           {LEAD_STATUSES.map((status) => (
@@ -157,7 +157,7 @@ export function TableView({
           className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
             onlyOverdue
               ? 'bg-red-500/15 border-red-500/40 text-red-300'
-              : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-slate-100'
+              : 'bg-[#09090B] border-zinc-800 text-zinc-400 hover:text-zinc-100'
           }`}
         >
           <AlertTriangle className="h-3.5 w-3.5" />
@@ -168,7 +168,7 @@ export function TableView({
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center gap-1 rounded-md px-2.5 py-2 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors whitespace-nowrap cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-md px-2.5 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors whitespace-nowrap cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
             <span>Limpar</span>
@@ -177,20 +177,20 @@ export function TableView({
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-800 bg-[#0F172A] overflow-hidden">
+      <div className="rounded-xl border border-zinc-800 bg-[#111114] overflow-hidden">
         {filteredLeads.length === 0 ? (
           <div className="py-12 px-4 text-center flex flex-col items-center gap-2">
-            <p className="text-sm font-medium text-slate-100">
+            <p className="text-sm font-medium text-zinc-100">
               Nenhum prospect encontrado com os filtros atuais.
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-zinc-400">
               Ajuste sua busca ou limpe os filtros para visualizar todos os leads.
             </p>
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-2 rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-700 cursor-pointer"
+                className="mt-2 rounded-md border border-zinc-700 bg-[#18181B] px-3 py-1.5 text-xs font-medium text-zinc-100 hover:bg-zinc-800 cursor-pointer"
               >
                 Limpar filtros
               </button>
@@ -200,7 +200,7 @@ export function TableView({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/60 text-xs font-medium text-slate-400">
+                <tr className="border-b border-zinc-800 bg-[#09090B]/70 text-xs font-medium text-zinc-400">
                   <th className="py-2.5 px-4">Empresa / Nicho</th>
                   <th className="py-2.5 px-3">Decisor / Presença Digital</th>
                   <th className="py-2.5 px-3">Etapa</th>
@@ -211,7 +211,7 @@ export function TableView({
                   <th className="py-2.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 text-sm">
+              <tbody className="divide-y divide-zinc-800 text-sm">
                 {filteredLeads.map((lead) => {
                   const urgency = getFollowUpUrgency(lead.nextFollowUp, lead.status);
                   const whatsappUrl = buildWhatsAppUrl(lead.phone);
@@ -221,29 +221,29 @@ export function TableView({
                     normalizeExternalUrl(lead.googleBusinessUrl);
 
                   return (
-                    <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr key={lead.id} className="hover:bg-zinc-900/60 transition-colors">
                       <td className="py-2.5 px-4 max-w-[230px]">
                         <button
                           type="button"
                           onClick={() => onSelectLead(lead)}
-                          className="font-medium text-slate-100 hover:text-blue-400 text-left truncate block w-full cursor-pointer"
+                          className="font-display font-semibold text-zinc-100 hover:text-orange-400 text-left truncate block w-full cursor-pointer"
                         >
                           {lead.companyName}
                         </button>
-                        <span className="text-xs text-slate-400">{lead.niche || 'Outro'}</span>
+                        <span className="text-xs text-zinc-400">{lead.niche || 'Outro'}</span>
                       </td>
 
                       <td className="py-2.5 px-3 max-w-[220px]">
-                        <div className="text-xs font-medium text-slate-200 truncate">
+                        <div className="text-xs font-medium text-zinc-200 truncate">
                           {lead.contactName || '—'}
                         </div>
-                        <div className="text-xs text-slate-400 truncate flex items-center gap-1.5">
+                        <div className="text-xs text-zinc-400 truncate flex items-center gap-1.5">
                           {primaryLink ? (
                             <a
                               href={primaryLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-400 hover:underline truncate"
+                              className="text-orange-400 hover:text-orange-300 hover:underline truncate"
                             >
                               {lead.websiteOrSocial || lead.websiteUrl || lead.instagramUrl || lead.googleBusinessUrl}
                             </a>
@@ -260,21 +260,21 @@ export function TableView({
                           aria-label={`Etapa de ${lead.companyName}`}
                           value={lead.status}
                           onChange={(e) => onMoveStatus(lead.id, e.target.value as LeadStatus)}
-                          className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-medium text-slate-100 focus:border-blue-500 focus:outline-none cursor-pointer"
+                          className="rounded border border-zinc-800 bg-[#09090B] px-2 py-1 text-xs font-medium text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
                         >
                           {LEAD_STATUSES.map((st) => (
-                            <option key={st} value={st} className="bg-slate-900 text-slate-100">
+                            <option key={st} value={st} className="bg-[#18181B] text-zinc-100">
                               {st}
                             </option>
                           ))}
                         </select>
                       </td>
 
-                      <td className="py-2.5 px-3 text-xs text-slate-200 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-xs text-zinc-200 whitespace-nowrap">
                         {lead.owner}
                       </td>
 
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs text-slate-100 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs text-zinc-100 whitespace-nowrap">
                         {formatCurrencyBRL(lead.estimatedValue)}
                       </td>
 
@@ -286,7 +286,7 @@ export function TableView({
                                 ? 'text-red-400 font-semibold'
                                 : urgency === 'today'
                                   ? 'text-amber-400 font-semibold'
-                                  : 'text-slate-400'
+                                  : 'text-zinc-400'
                             }`}
                           >
                             {urgency === 'overdue' && <AlertTriangle className="h-3 w-3" />}
@@ -294,7 +294,7 @@ export function TableView({
                             {formatDateBR(lead.nextFollowUp)}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-500">—</span>
+                          <span className="text-xs text-zinc-500">—</span>
                         )}
                       </td>
 
@@ -303,11 +303,11 @@ export function TableView({
                           type="button"
                           onClick={() => onIncrementCall(lead.id)}
                           aria-label={`+1 Ligação para ${lead.companyName}`}
-                          className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-900 hover:bg-blue-500/15 hover:text-blue-300 px-2 py-1 text-xs font-mono tabular-nums text-slate-100 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded border border-zinc-800 bg-[#09090B] hover:bg-orange-500/15 hover:text-orange-300 hover:border-orange-500/40 px-2 py-1 text-xs font-mono tabular-nums text-zinc-100 transition-colors cursor-pointer"
                         >
                           <Phone className="h-3 w-3" />
                           <span>{lead.callCount}</span>
-                          <span className="font-sans text-[11px] text-slate-400">+1</span>
+                          <span className="font-sans text-[11px] text-zinc-400">+1</span>
                         </button>
                       </td>
 
@@ -329,9 +329,9 @@ export function TableView({
                             type="button"
                             onClick={() => onSelectLead(lead)}
                             aria-label={`Detalhes de ${lead.companyName}`}
-                            className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-900 hover:bg-slate-800 px-2 py-1 text-xs font-medium text-slate-100 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded border border-zinc-800 bg-[#18181B] hover:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-100 transition-colors cursor-pointer"
                           >
-                            <ExternalLink className="h-3 w-3 text-slate-400" />
+                            <ExternalLink className="h-3 w-3 text-zinc-400" />
                             <span>Abrir</span>
                           </button>
                         </div>

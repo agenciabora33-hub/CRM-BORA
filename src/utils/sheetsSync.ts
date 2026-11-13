@@ -1,11 +1,24 @@
 import { Lead } from '../types/crm';
 import { normalizeLeadFromRemote } from './crmLogic';
 
+export interface RemoteAgencySettings {
+  companyName?: string;
+  logoUrl?: string;
+  teamMembers?: [string, string];
+  updatedAt?: string;
+}
+
+export interface SheetsFetchResult {
+  leads: Lead[];
+  settings: RemoteAgencySettings | null;
+}
+
 export type SyncActionPayload =
   | { action: 'create'; lead: Lead }
   | { action: 'update'; lead: Lead }
   | { action: 'delete'; id: string }
-  | { action: 'syncAll'; leads: Lead[] };
+  | { action: 'syncAll'; leads: Lead[]; settings?: RemoteAgencySettings }
+  | { action: 'syncSettings'; settings: RemoteAgencySettings };
 
 export function validateAppsScriptUrl(
   url: string
@@ -57,6 +70,39 @@ export function validateAppsScriptUrl(
 
 export function isValidAppsScriptUrl(url: string): boolean {
   return validateAppsScriptUrl(url).valid;
+}
+
+export function normalizeRemoteSettings(raw: unknown): RemoteAgencySettings | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const normalized: RemoteAgencySettings = {};
+  let hasData = false;
+
+  if (typeof obj.companyName === 'string' && obj.companyName.trim()) {
+    normalized.companyName = obj.companyName.trim();
+    hasData = true;
+  }
+
+  if (typeof obj.logoUrl === 'string') {
+    normalized.logoUrl = obj.logoUrl.trim();
+    hasData = true;
+  }
+
+  if (Array.isArray(obj.teamMembers) && obj.teamMembers.length === 2) {
+    const m1 = String(obj.teamMembers[0] ?? '').trim() || 'Sócio 1';
+    const m2 = String(obj.teamMembers[1] ?? '').trim() || 'Sócio 2';
+    normalized.teamMembers = [m1, m2];
+    hasData = true;
+  }
+
+  if (typeof obj.updatedAt === 'string' && obj.updatedAt.trim()) {
+    normalized.updatedAt = obj.updatedAt.trim();
+  }
+
+  return hasData ? normalized : null;
 }
 
 export function formatDirectFetchError(err: unknown): Error {
@@ -124,10 +170,11 @@ async function callViaProxy<T>(
 interface SheetsGetResponse {
   ok?: boolean;
   leads?: Record<string, unknown>[];
+  settings?: unknown;
   error?: string;
 }
 
-function fetchLeadsViaJsonp(url: string): Promise<SheetsGetResponse> {
+function fetchWorkspaceViaJsonp(url: string): Promise<SheetsGetResponse> {
   if (typeof document === 'undefined') {
     return Promise.reject(new Error('JSONP indisponível fora do navegador.'));
   }
@@ -181,7 +228,18 @@ function fetchLeadsViaJsonp(url: string): Promise<SheetsGetResponse> {
   });
 }
 
-export async function fetchLeadsFromSheets(url: string, fallbackOwner: string): Promise<Lead[]> {
+function parseWorkspaceResponse(data: SheetsGetResponse, fallbackOwner: string): SheetsFetchResult {
+  const rawLeads = Array.isArray(data.leads) ? data.leads : [];
+  return {
+    leads: rawLeads.map((item) => normalizeLeadFromRemote(item, fallbackOwner)),
+    settings: normalizeRemoteSettings(data.settings),
+  };
+}
+
+export async function fetchWorkspaceFromSheets(
+  url: string,
+  fallbackOwner: string
+): Promise<SheetsFetchResult> {
   const check = validateAppsScriptUrl(url);
   if (!check.valid) {
     throw new Error(check.reason || 'URL do Google Apps Script inválida.');
@@ -190,8 +248,7 @@ export async function fetchLeadsFromSheets(url: string, fallbackOwner: string): 
   const proxied = await callViaProxy<SheetsGetResponse>(check.normalizedUrl, 'GET');
 
   if (proxied.handled && proxied.data) {
-    const rawLeads = Array.isArray(proxied.data.leads) ? proxied.data.leads : [];
-    return rawLeads.map((item) => normalizeLeadFromRemote(item, fallbackOwner));
+    return parseWorkspaceResponse(proxied.data, fallbackOwner);
   }
 
   try {
@@ -209,8 +266,7 @@ export async function fetchLeadsFromSheets(url: string, fallbackOwner: string): 
       throw new Error(data.error || 'O Apps Script retornou um erro.');
     }
 
-    const rawLeads = Array.isArray(data.leads) ? data.leads : [];
-    return rawLeads.map((item) => normalizeLeadFromRemote(item, fallbackOwner));
+    return parseWorkspaceResponse(data, fallbackOwner);
   } catch (directErr) {
     // If browser CORS blocked direct fetch, fall back to JSONP supported by Code.gs
     if (
@@ -218,18 +274,22 @@ export async function fetchLeadsFromSheets(url: string, fallbackOwner: string): 
       (directErr.name === 'TypeError' || directErr.message.toLowerCase().includes('failed to fetch'))
     ) {
       try {
-        const jsonpData = await fetchLeadsViaJsonp(check.normalizedUrl);
+        const jsonpData = await fetchWorkspaceViaJsonp(check.normalizedUrl);
         if (jsonpData.ok === false) {
           throw new Error(jsonpData.error || 'O Apps Script retornou um erro.');
         }
-        const rawLeads = Array.isArray(jsonpData.leads) ? jsonpData.leads : [];
-        return rawLeads.map((item) => normalizeLeadFromRemote(item, fallbackOwner));
+        return parseWorkspaceResponse(jsonpData, fallbackOwner);
       } catch (jsonpErr) {
         throw formatDirectFetchError(jsonpErr);
       }
     }
     throw formatDirectFetchError(directErr);
   }
+}
+
+export async function fetchLeadsFromSheets(url: string, fallbackOwner: string): Promise<Lead[]> {
+  const result = await fetchWorkspaceFromSheets(url, fallbackOwner);
+  return result.leads;
 }
 
 export async function postToSheets(url: string, payload: SyncActionPayload): Promise<void> {

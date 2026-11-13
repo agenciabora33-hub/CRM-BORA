@@ -49,7 +49,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#09090B] text-zinc-100 flex flex-col overflow-x-hidden">
       <Header
         activeView={activeView}
         onChangeView={setActiveView}
@@ -64,7 +64,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5">
+      <main className="flex-1 max-w-[1600px] w-full min-w-0 mx-auto px-4 sm:px-6 py-5">
         {activeView === 'kanban' && (
           <KanbanBoard
             leads={leads}

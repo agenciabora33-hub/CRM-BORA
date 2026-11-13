@@ -14,12 +14,12 @@ interface KanbanBoardProps {
 }
 
 const STAGE_DOT_COLORS: Record<LeadStatus, string> = {
-  'Para Prospectar': 'bg-slate-400',
-  'Contato Feito': 'bg-blue-400',
-  'Interesse / Conversa': 'bg-indigo-400',
+  'Para Prospectar': 'bg-zinc-400',
+  'Contato Feito': 'bg-sky-400',
+  'Interesse / Conversa': 'bg-orange-400',
   'Reunião / Proposta': 'bg-amber-400',
   'Fechado (Ganho)': 'bg-emerald-400',
-  'Perdido': 'bg-slate-600',
+  'Perdido': 'bg-zinc-600',
 };
 
 export function KanbanBoard({
@@ -66,23 +66,23 @@ export function KanbanBoard({
       {/* Compact Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-lg font-semibold text-slate-100">
+          <h1 className="font-display text-xl font-bold tracking-tight text-zinc-50">
             Funil de Prospecção
           </h1>
-          <p className="text-xs text-slate-400">
-            Arraste os cards entre colunas ou use o seletor rápido para atualizar a etapa.
+          <p className="text-xs text-zinc-400">
+            Arraste os cards entre colunas ou use o seletor rápido para atualizar a etapa em tempo real.
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-[#0F172A] border border-slate-800 rounded-lg p-1">
-          <Filter className="h-3.5 w-3.5 text-slate-400 ml-2" />
+        <div className="flex flex-wrap items-center gap-1 bg-[#111114] border border-zinc-800 rounded-lg p-1">
+          <Filter className="h-3.5 w-3.5 text-zinc-500 ml-2 mr-0.5" />
           <button
             type="button"
             onClick={() => setOwnerFilter('all')}
-            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+            className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
               ownerFilter === 'all'
-                ? 'bg-[#2563EB] text-white'
-                : 'text-slate-400 hover:text-slate-100'
+                ? 'bg-[#F97316] text-white'
+                : 'text-zinc-400 hover:text-zinc-100'
             }`}
           >
             Todos ({leads.length})
@@ -94,10 +94,10 @@ export function KanbanBoard({
                 key={member}
                 type="button"
                 onClick={() => setOwnerFilter(member)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
                   ownerFilter === member
-                    ? 'bg-[#2563EB] text-white'
-                    : 'text-slate-400 hover:text-slate-100'
+                    ? 'bg-[#F97316] text-white'
+                    : 'text-zinc-400 hover:text-zinc-100'
                 }`}
               >
                 {member} ({count})
@@ -126,8 +126,8 @@ export function KanbanBoard({
               onDrop={(e) => handleDrop(e, status)}
               className={`w-[268px] sm:w-[272px] shrink-0 rounded-xl border p-3 flex flex-col gap-3 transition-colors duration-150 ${
                 isDropTarget
-                  ? 'bg-blue-950/40 border-blue-500/60'
-                  : 'bg-[#0F172A] border-slate-800'
+                  ? 'bg-orange-950/30 border-orange-500/60'
+                  : 'bg-[#111114] border-zinc-800'
               }`}
             >
               {/* Column Header */}
@@ -138,17 +138,17 @@ export function KanbanBoard({
                       aria-hidden="true"
                       className={`h-2 w-2 rounded-xs shrink-0 ${STAGE_DOT_COLORS[status]}`}
                     />
-                    <h2 className="font-display text-sm font-semibold text-slate-100 truncate">
+                    <h2 className="font-display text-sm font-semibold tracking-tight text-zinc-100 truncate">
                       {status}
                     </h2>
                   </div>
-                  <p className="font-mono tabular-nums text-xs text-slate-400 mt-0.5 pl-4">
+                  <p className="font-mono tabular-nums text-xs text-zinc-400 mt-0.5 pl-4">
                     {formatCurrencyBRL(columnTotalValue)}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="font-mono tabular-nums text-xs font-semibold text-slate-300 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5">
+                  <span className="font-mono tabular-nums text-xs font-semibold text-zinc-300 bg-[#09090B] border border-zinc-800 rounded px-1.5 py-0.5">
                     {columnLeads.length}
                   </span>
                   <button
@@ -156,7 +156,7 @@ export function KanbanBoard({
                     onClick={() => onOpenNewProspect(status)}
                     aria-label={`Adicionar prospect em ${status}`}
                     title={`Adicionar prospect em ${status}`}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
+                    className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-orange-400 transition-colors cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -166,8 +166,8 @@ export function KanbanBoard({
               {/* Cards Stack */}
               <div className="flex flex-col gap-2.5 min-h-[120px]">
                 {columnLeads.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-3 py-6 text-center">
-                    <p className="text-xs text-slate-500">Nenhum lead nesta etapa</p>
+                  <div className="rounded-lg border border-dashed border-zinc-800 bg-[#09090B]/50 px-3 py-6 text-center">
+                    <p className="text-xs text-zinc-500">Nenhum lead nesta etapa</p>
                   </div>
                 ) : (
                   columnLeads.map((lead) => (

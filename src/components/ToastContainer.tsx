@@ -24,33 +24,33 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
 
         const accentClasses =
           toast.variant === 'error'
-            ? 'border-red-500/40 bg-slate-900 text-slate-100'
+            ? 'border-red-500/40 bg-[#18181B] text-zinc-100'
             : toast.variant === 'info'
-              ? 'border-blue-500/40 bg-slate-900 text-slate-100'
-              : 'border-emerald-500/40 bg-slate-900 text-slate-100';
+              ? 'border-orange-500/40 bg-[#18181B] text-zinc-100'
+              : 'border-emerald-500/40 bg-[#18181B] text-zinc-100';
 
         const iconColor =
           toast.variant === 'error'
             ? 'text-red-400'
             : toast.variant === 'info'
-              ? 'text-blue-400'
+              ? 'text-orange-400'
               : 'text-emerald-400';
 
         return (
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto flex items-center gap-3 rounded-lg border px-3.5 py-2.5 shadow-lg transition-all duration-150 ${accentClasses}`}
+            className={`pointer-events-auto flex items-center gap-3 rounded-lg border px-3.5 py-2.5 shadow-xl transition-all duration-150 ${accentClasses}`}
           >
             <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
-            <p className="text-sm font-medium text-slate-100 flex-1 leading-snug">
+            <p className="text-sm font-medium text-zinc-100 flex-1 leading-snug">
               {toast.message}
             </p>
             <button
               type="button"
               onClick={() => onDismiss(toast.id)}
               aria-label="Fechar notificação"
-              className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors cursor-pointer"
+              className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>

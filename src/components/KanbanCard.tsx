@@ -47,7 +47,7 @@ export function KanbanCard({
       draggable
       onDragStart={(e) => onDragStart(e, lead.id)}
       data-testid={`kanban-card-${lead.id}`}
-      className="group rounded-lg bg-[#162033] border border-slate-800 p-3.5 hover:border-slate-700 transition-colors duration-150 cursor-grab active:cursor-grabbing flex flex-col gap-2.5"
+      className="group rounded-lg bg-[#18181B] border border-zinc-800 p-3.5 hover:border-zinc-700 transition-colors duration-150 cursor-grab active:cursor-grabbing flex flex-col gap-2.5"
     >
       {/* Top: Title button + clean unboxed metadata line */}
       <div className="flex flex-col gap-1">
@@ -56,19 +56,19 @@ export function KanbanCard({
             type="button"
             onClick={() => onSelect(lead)}
             aria-label={`Abrir detalhes de ${lead.companyName}`}
-            className="text-left font-display font-semibold text-sm text-slate-100 hover:text-blue-400 transition-colors leading-snug line-clamp-2 cursor-pointer"
+            className="text-left font-display font-semibold text-sm text-zinc-100 hover:text-orange-400 transition-colors leading-snug line-clamp-2 cursor-pointer"
           >
             {lead.companyName}
           </button>
           {lead.estimatedValue > 0 && (
-            <span className="font-mono tabular-nums text-xs font-medium text-slate-200 shrink-0">
+            <span className="font-mono tabular-nums text-xs font-medium text-zinc-200 shrink-0">
               {formatCurrencyBRL(lead.estimatedValue)}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
-          <span className="font-medium text-slate-300">{lead.niche || 'Outro'}</span>
+        <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate">
+          <span className="font-medium text-zinc-300">{lead.niche || 'Outro'}</span>
           <span aria-hidden="true">·</span>
           <span>{lead.owner}</span>
         </div>
@@ -76,16 +76,16 @@ export function KanbanCard({
 
       {/* Middle: Contact & Digital Presence */}
       {(lead.contactName || lead.websiteOrSocial || digitalLinks.length > 0) && (
-        <div className="flex flex-col gap-1.5 text-xs text-slate-400">
+        <div className="flex flex-col gap-1.5 text-xs text-zinc-400">
           {lead.contactName && (
             <div className="flex items-center gap-1.5 truncate">
-              <User className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-              <span className="truncate text-slate-200">{lead.contactName}</span>
+              <User className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+              <span className="truncate text-zinc-200">{lead.contactName}</span>
             </div>
           )}
           {lead.websiteOrSocial && (
             <div className="flex items-center gap-1.5 truncate">
-              <Globe className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+              <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
               <span className="truncate">{lead.websiteOrSocial}</span>
             </div>
           )}
@@ -97,7 +97,7 @@ export function KanbanCard({
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline"
+                  className="inline-flex items-center gap-1 text-orange-400 hover:text-orange-300 hover:underline"
                 >
                   <ExternalLink className="h-2.5 w-2.5" />
                   <span>{link.label}</span>
@@ -131,18 +131,18 @@ export function KanbanCard({
       )}
 
       {/* Footer Quick Actions */}
-      <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-1.5">
+      <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => onIncrementCall(lead.id)}
             aria-label={`+1 Ligação para ${lead.companyName}`}
             title="Registrar +1 ligação"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium bg-slate-900 hover:bg-blue-500/15 text-slate-100 hover:text-blue-300 border border-slate-700 transition-colors cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium bg-[#09090B] hover:bg-orange-500/15 text-zinc-100 hover:text-orange-300 border border-zinc-800 hover:border-orange-500/40 transition-colors cursor-pointer whitespace-nowrap"
           >
             <Phone className="h-3 w-3" />
             <span className="font-mono tabular-nums">{lead.callCount}</span>
-            <span className="text-[11px] text-slate-400">+1</span>
+            <span className="text-[11px] text-zinc-400">+1</span>
           </button>
 
           {whatsappUrl && (
@@ -163,10 +163,10 @@ export function KanbanCard({
           aria-label={`Mover etapa de ${lead.companyName}`}
           value={lead.status}
           onChange={(e) => onMoveStatus(lead.id, e.target.value as LeadStatus)}
-          className="max-w-[122px] truncate rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-[11px] font-medium text-slate-300 hover:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+          className="max-w-[122px] truncate rounded border border-zinc-800 bg-[#09090B] px-1.5 py-1 text-[11px] font-medium text-zinc-300 hover:text-zinc-100 focus:outline-none focus:border-orange-500 cursor-pointer"
         >
           {LEAD_STATUSES.map((st) => (
-            <option key={st} value={st} className="bg-slate-900 text-slate-100">
+            <option key={st} value={st} className="bg-[#18181B] text-zinc-100">
               {st}
             </option>
           ))}

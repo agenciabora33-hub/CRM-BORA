@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { APPS_SCRIPT_CODE } from './appsScriptTemplate';
-import { formatDirectFetchError, isValidAppsScriptUrl, validateAppsScriptUrl } from './sheetsSync';
+import {
+  formatDirectFetchError,
+  isValidAppsScriptUrl,
+  normalizeRemoteSettings,
+  validateAppsScriptUrl,
+} from './sheetsSync';
 
 test('validateAppsScriptUrl accepts valid /exec Apps Script URLs', () => {
   const res = validateAppsScriptUrl('https://script.google.com/macros/s/AKfycbx123/exec');
@@ -31,8 +36,30 @@ test('formatDirectFetchError never exposes raw Failed to fetch text', () => {
   assert.match(err.message, /Qualquer pessoa/);
 });
 
-test('APPS_SCRIPT_CODE supports JSONP callback and header migration', () => {
+test('normalizeRemoteSettings validates and normalizes shared agency settings safely', () => {
+  assert.equal(normalizeRemoteSettings(null), null);
+  assert.equal(normalizeRemoteSettings({}), null);
+
+  const normalized = normalizeRemoteSettings({
+    companyName: '  Bora Digital  ',
+    logoUrl: ' /logo.jpg ',
+    teamMembers: ['Gabriel', ''],
+    updatedAt: '2026-11-13T10:00:00.000Z',
+  });
+
+  assert.deepEqual(normalized, {
+    companyName: 'Bora Digital',
+    logoUrl: '/logo.jpg',
+    teamMembers: ['Gabriel', 'Sócio 2'],
+    updatedAt: '2026-11-13T10:00:00.000Z',
+  });
+});
+
+test('APPS_SCRIPT_CODE supports JSONP callback, header migration, and Config settings sync', () => {
   assert.match(APPS_SCRIPT_CODE, /e\.parameter\.callback/);
   assert.match(APPS_SCRIPT_CODE, /ContentService\.MimeType\.JAVASCRIPT/);
   assert.match(APPS_SCRIPT_CODE, /missingHeaders/);
+  assert.match(APPS_SCRIPT_CODE, /CONFIG_SHEET_NAME = 'Config'/);
+  assert.match(APPS_SCRIPT_CODE, /syncSettings/);
+  assert.match(APPS_SCRIPT_CODE, /readRemoteSettings/);
 });
