@@ -67,7 +67,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <main className="flex-1 max-w-[1600px] w-full min-w-0 mx-auto px-4 sm:px-6 py-5">
+      <main className="flex-1 max-w-[1600px] w-full min-w-0 mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-6">
         {activeView === 'kanban' && (
           <KanbanBoard
             leads={leads}

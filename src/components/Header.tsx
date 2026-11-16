@@ -46,9 +46,9 @@ export function Header({
   }, [settings.logoUrl]);
 
   return (
-    <header className="sticky top-0 z-30 bg-[#111114]/95 backdrop-blur-md border-b border-zinc-800">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#111114]/95 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
-        <div className="h-14 sm:h-15 flex items-center justify-between gap-3">
+        <div className="h-14 sm:h-16 flex items-center justify-between gap-3">
           {/* Left: Bora Brand Logo Lockup + Name */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-9 sm:h-10 px-2 py-1 rounded-lg bg-black border border-zinc-800 flex items-center justify-center shrink-0">
