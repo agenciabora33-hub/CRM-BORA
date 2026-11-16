@@ -5,12 +5,12 @@ import {
   ExternalLink,
   FileText,
   MessageCircle,
-  Minus,
   Phone,
   Plus,
   Save,
   Trash2,
   User,
+  Users,
   X,
 } from 'lucide-react';
 import { LEAD_STATUSES, Lead, LeadStatus, ServiceLog } from '../types/crm';
@@ -30,6 +30,8 @@ interface LeadDetailDrawerProps {
   onDelete: (leadId: string) => void;
 }
 
+type ContactType = 'Ligação' | 'WhatsApp' | 'Pessoal';
+
 export function LeadDetailDrawer({
   lead,
   teamMembers,
@@ -39,7 +41,9 @@ export function LeadDetailDrawer({
   onDelete,
 }: LeadDetailDrawerProps) {
   const [draft, setDraft] = useState<Lead | null>(lead);
-  const [newServiceLogText, setNewServiceLogText] = useState('');
+  const [activeContactType, setActiveContactType] = useState<ContactType | null>(null);
+  const [contactText, setContactText] = useState('');
+  const [targetStatus, setTargetStatus] = useState<LeadStatus>(lead?.status || 'Para Prospectar');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
@@ -50,7 +54,9 @@ export function LeadDetailDrawer({
         ...lead,
         serviceLogs: Array.isArray(lead.serviceLogs) ? lead.serviceLogs : [],
       });
-      setNewServiceLogText('');
+      setActiveContactType(null);
+      setContactText('');
+      setTargetStatus(lead.status);
       setConfirmingDelete(false);
     }
   }, [lead]);
@@ -59,8 +65,24 @@ export function LeadDetailDrawer({
 
   const whatsappUrl = buildWhatsAppUrl(draft.phone);
 
-  const handleAddServiceLog = () => {
-    if (!newServiceLogText.trim()) return;
+  const handleOpenContactForm = (type: ContactType) => {
+    if (activeContactType === type) {
+      setActiveContactType(null);
+    } else {
+      setActiveContactType(type);
+      setTargetStatus(draft.status);
+      setContactText(
+        type === 'Ligação'
+          ? 'Ligação realizada com o decisor.'
+          : type === 'WhatsApp'
+            ? 'Contato iniciado via WhatsApp.'
+            : 'Reunião ou visita presencial realizada.'
+      );
+    }
+  };
+
+  const handleSaveContactRecord = () => {
+    if (!contactText.trim() || !activeContactType) return;
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -72,15 +94,23 @@ export function LeadDetailDrawer({
     const newLog: ServiceLog = {
       id: generateUuid(),
       timestamp,
-      author: activeUser || draft.owner || 'Cláudio',
-      content: newServiceLogText.trim(),
+      author: activeUser,
+      contactType: activeContactType,
+      targetStatus,
+      content: contactText.trim(),
     };
+
+    const nextCallCount = activeContactType === 'Ligação' || activeContactType === 'WhatsApp' ? draft.callCount + 1 : draft.callCount;
 
     setDraft({
       ...draft,
+      callCount: nextCallCount,
+      status: targetStatus,
       serviceLogs: [newLog, ...(draft.serviceLogs || [])],
     });
-    setNewServiceLogText('');
+
+    setActiveContactType(null);
+    setContactText('');
   };
 
   const handleDeleteServiceLog = (logId: string) => {
@@ -123,7 +153,7 @@ export function LeadDetailDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-lead-title"
-        className="w-[90vw] h-[90vh] max-w-[1550px] max-h-[940px] bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        className="w-[90vw] h-[90vh] max-w-[1650px] max-h-[960px] bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between gap-3 bg-[#09090B]/60 shrink-0">
@@ -135,7 +165,7 @@ export function LeadDetailDrawer({
               {draft.companyName || 'Detalhes do Lead'}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Criado em {formatDateBR(draft.createdAt)} · Atualizado em {formatDateBR(draft.updatedAt)} · Responsável: <span className="text-orange-400 font-semibold">{draft.owner}</span>
+              Criado em {formatDateBR(draft.createdAt)} · Atualizado em {formatDateBR(draft.updatedAt)} · Etapa atual: <span className="text-[#F97316] font-semibold">{draft.status}</span>
             </p>
           </div>
           <button
@@ -150,79 +180,235 @@ export function LeadDetailDrawer({
 
         {/* Form Content + Pinned Footer */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-            {/* Left Column: Lead Info & Digital Presence (7 cols) */}
-            <div className="lg:col-span-7 flex flex-col gap-5">
-              {/* Quick Call & WhatsApp Strip */}
-              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-zinc-300">Contatos Realizados:</span>
-                  <div className="inline-flex items-center rounded-lg border border-zinc-800 bg-[#18181B]">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDraft({ ...draft, callCount: Math.max(0, draft.callCount - 1) })
-                      }
-                      aria-label="Diminuir ligações"
-                      className="p-2 text-zinc-400 hover:text-zinc-100 cursor-pointer"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <span className="px-3 font-mono tabular-nums text-sm font-bold text-zinc-100">
-                      {draft.callCount}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextCount = draft.callCount + 1;
-                        const now = new Date();
-                        const day = String(now.getDate()).padStart(2, '0');
-                        const month = String(now.getMonth() + 1).padStart(2, '0');
-                        const year = now.getFullYear();
-                        const hours = String(now.getHours()).padStart(2, '0');
-                        const minutes = String(now.getMinutes()).padStart(2, '0');
-                        const timestamp = `${day}/${month}/${year} ${hours}:${minutes}`;
-                        const newLog: ServiceLog = {
-                          id: generateUuid(),
-                          timestamp,
-                          author: activeUser,
-                          content: `Ligação #${nextCount} realizada`,
-                        };
-                        setDraft({
-                          ...draft,
-                          callCount: nextCount,
-                          serviceLogs: [newLog, ...(draft.serviceLogs || [])],
-                        });
-                      }}
-                      aria-label="Registrar +1 ligação"
-                      className="p-2 text-orange-400 hover:bg-orange-500/15 cursor-pointer rounded-r-lg"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
+          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-10 gap-6 min-h-0">
+            
+            {/* Left Column: 40% (lg:col-span-4) - Contact counters, interactive action buttons & service logs history */}
+            <div className="lg:col-span-4 flex flex-col gap-4 min-h-0">
+              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3 shrink-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                    Registros e Evolução de Contato
+                  </span>
+                  <span className="font-mono text-xs text-orange-400 font-bold">
+                    Total: {draft.callCount}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  Clique nos botões abaixo para registrar um contato, marcar a evolução no funil e salvar no histórico.
+                </p>
+
+                {/* 3 Clickable Contact Type Buttons */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenContactForm('Ligação')}
+                    className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                      activeContactType === 'Ligação'
+                        ? 'bg-orange-500 text-white border-orange-400'
+                        : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    <Phone className="h-4 w-4" />
+                    <span>Ligação</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenContactForm('WhatsApp')}
+                    className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                      activeContactType === 'WhatsApp'
+                        ? 'bg-emerald-600 text-white border-emerald-500'
+                        : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenContactForm('Pessoal')}
+                    className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                      activeContactType === 'Pessoal'
+                        ? 'bg-amber-600 text-white border-amber-500'
+                        : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>Pessoal</span>
+                  </button>
                 </div>
 
-                {whatsappUrl ? (
+                {whatsappUrl && (
                   <a
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 text-xs font-semibold transition-colors"
+                    className="w-full mt-1 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3 py-2 text-xs font-medium transition-colors"
                   >
-                    <MessageCircle className="h-4 w-4" />
-                    <span>Chamar no WhatsApp</span>
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    <span>Abrir Chat WhatsApp Direto</span>
                   </a>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
-                    <Phone className="h-4 w-4" />
-                    Sem telefone válido
-                  </span>
                 )}
               </div>
 
-              {/* Main Fields Grid */}
+              {/* Active Contact Input Form (Appears when a contact button is clicked) */}
+              {activeContactType && (
+                <div className="rounded-xl border border-orange-500/40 bg-[#09090B] p-4 flex flex-col gap-3 animate-fadeIn shrink-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-orange-400">
+                      Novo Registro de {activeContactType} ({activeUser})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveContactType(null)}
+                      className="text-zinc-400 hover:text-zinc-100 cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div>
+                    <label htmlFor="contact-text" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                      Detalhes do Contato / Atendimento
+                    </label>
+                    <textarea
+                      id="contact-text"
+                      rows={3}
+                      value={contactText}
+                      onChange={(e) => setContactText(e.target.value)}
+                      placeholder="Descreva o que foi conversado..."
+                      className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="target-status" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                      Avançar / Marcar Etapa no Funil
+                    </label>
+                    <select
+                      id="target-status"
+                      value={targetStatus}
+                      onChange={(e) => setTargetStatus(e.target.value as LeadStatus)}
+                      className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
+                    >
+                      {LEAD_STATUSES.map((st) => (
+                        <option key={st} value={st} className="bg-[#18181B] text-zinc-100">
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveContactType(null)}
+                      className="px-3 py-1.5 rounded-md border border-zinc-800 bg-[#18181B] text-xs font-medium text-zinc-300 hover:text-zinc-100 cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveContactRecord}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#F97316] hover:bg-[#EA580C] text-xs font-semibold text-white cursor-pointer shadow-xs"
+                    >
+                      <CalendarPlus className="h-3.5 w-3.5" />
+                      <span>Salvar e Atualizar Funil</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Service Logs History */}
+              <div className="flex-1 rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3 min-h-[260px] overflow-hidden">
+                <div className="flex items-center justify-between gap-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-emerald-400" />
+                    <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                      Histórico de Atendimentos
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+                    {(draft.serviceLogs || []).length}
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1 min-h-[180px]">
+                  {(!draft.serviceLogs || draft.serviceLogs.length === 0) ? (
+                    <div className="py-12 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
+                      Nenhum registro de atendimento realizado. Clique em Ligação, WhatsApp ou Pessoal acima para registrar.
+                    </div>
+                  ) : (
+                    draft.serviceLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="rounded-lg border border-zinc-800 bg-[#18181B] p-3 flex flex-col gap-1.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-400 border-b border-zinc-800/80 pb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-emerald-400 font-semibold">{log.timestamp}</span>
+                            {log.contactType && (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                log.contactType === 'Ligação' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
+                                log.contactType === 'WhatsApp' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                                'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              }`}>
+                                {log.contactType}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteServiceLog(log.id)}
+                            title="Remover registro"
+                            className="text-zinc-500 hover:text-red-400 cursor-pointer p-0.5"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <p className="text-zinc-100 whitespace-pre-wrap leading-relaxed">
+                          {log.content}
+                        </p>
+                        {log.targetStatus && (
+                          <div className="text-[10px] text-zinc-400 pt-0.5">
+                            Etapa no funil: <span className="text-[#F97316] font-medium">{log.targetStatus}</span> · <span className="text-zinc-300">Por {log.author}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: 60% (lg:col-span-6) - 1. Anotações do Lead, 2. Informações Cadastrais, 3. Presença Digital */}
+            <div className="lg:col-span-6 flex flex-col gap-5 min-h-0 overflow-y-auto pr-1">
+              
+              {/* 1. Anotações do Lead */}
+              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#F97316]" />
+                  <label htmlFor="ed-notes" className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                    Anotações do Lead
+                  </label>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  Bloco de anotações livres sobre o cliente, acordos e observações gerais.
+                </p>
+                <textarea
+                  id="ed-notes"
+                  rows={3}
+                  value={draft.notes}
+                  onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                  placeholder="Digite as anotações do lead..."
+                  className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 leading-relaxed focus:border-orange-500 focus:outline-none resize-y"
+                />
+              </div>
+
+              {/* 2. Informações Cadastrais */}
               <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-4">
-                <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+                <span className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
                   Informações Cadastrais
                 </span>
 
@@ -361,9 +547,9 @@ export function LeadDetailDrawer({
                 </div>
               </div>
 
-              {/* Digital Presence URLs */}
+              {/* 3. Presença Digital */}
               <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3">
-                <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+                <span className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
                   Presença Digital & Links
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -436,112 +622,7 @@ export function LeadDetailDrawer({
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Right Column: Separated Anotações and Registros de Atendimento (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-5 min-h-0">
-              {/* 1. Anotações Gerais */}
-              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[#F97316]" />
-                  <label htmlFor="ed-notes" className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-                    Anotações Gerais do Lead
-                  </label>
-                </div>
-                <p className="text-[11px] text-zinc-400">
-                  Bloco de notas geral sobre o prospect, briefings e acordos.
-                </p>
-                <textarea
-                  id="ed-notes"
-                  rows={4}
-                  value={draft.notes}
-                  onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-                  placeholder="Digite as anotações gerais sobre a empresa..."
-                  className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 leading-relaxed focus:border-orange-500 focus:outline-none resize-y"
-                />
-              </div>
-
-              {/* 2. Registros de Atendimento (Strictly separated with date, time, and author) */}
-              <div className="flex-1 rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3 min-h-[300px]">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-emerald-400" />
-                    <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-                      Registros de Atendimento
-                    </h3>
-                  </div>
-                  <span className="text-[11px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
-                    {(draft.serviceLogs || []).length} registros
-                  </span>
-                </div>
-                <p className="text-[11px] text-zinc-400">
-                  Histórico oficial de contatos e interações (inserido pelo usuário com data e hora).
-                </p>
-
-                {/* Add new service log input */}
-                <div className="flex flex-col gap-2 bg-[#111114] p-3 rounded-lg border border-zinc-800">
-                  <label htmlFor="new-service-log" className="text-[11px] font-medium text-zinc-300 flex items-center justify-between">
-                    <span>Novo Registro de Atendimento</span>
-                    <span className="text-orange-400 font-mono">Autor: {activeUser}</span>
-                  </label>
-                  <textarea
-                    id="new-service-log"
-                    rows={2}
-                    value={newServiceLogText}
-                    onChange={(e) => setNewServiceLogText(e.target.value)}
-                    placeholder="Descreva o atendimento ou contato realizado..."
-                    className="w-full rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none resize-none"
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleAddServiceLog}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-[#F97316] hover:bg-[#EA580C] px-3 py-1.5 text-xs font-semibold text-white transition-colors cursor-pointer shadow-xs"
-                    >
-                      <CalendarPlus className="h-3.5 w-3.5" />
-                      <span>Adicionar Registro com Data e Hora</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Timeline list of service logs */}
-                <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-[160px] max-h-[320px] pr-1">
-                  {(!draft.serviceLogs || draft.serviceLogs.length === 0) ? (
-                    <div className="py-8 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
-                      Nenhum registro de atendimento cadastrado ainda.
-                    </div>
-                  ) : (
-                    draft.serviceLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="rounded-lg border border-zinc-800 bg-[#18181B] p-3 flex flex-col gap-1.5 text-xs"
-                      >
-                        <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-400 border-b border-zinc-800/80 pb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-emerald-400 font-semibold">{log.timestamp}</span>
-                            <span className="text-zinc-500">·</span>
-                            <span className="inline-flex items-center gap-1 text-zinc-300 font-medium">
-                              <User className="h-3 w-3 text-[#F97316]" />
-                              {log.author}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteServiceLog(log.id)}
-                            title="Remover registro"
-                            className="text-zinc-500 hover:text-red-400 cursor-pointer p-0.5"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <p className="text-zinc-100 whitespace-pre-wrap leading-relaxed">
-                          {log.content}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 

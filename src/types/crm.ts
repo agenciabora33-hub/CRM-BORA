@@ -14,6 +14,8 @@ export interface ServiceLog {
   timestamp: string;
   author: string;
   content: string;
+  contactType?: 'Ligação' | 'WhatsApp' | 'Pessoal';
+  targetStatus?: LeadStatus;
 }
 
 export interface Lead {
