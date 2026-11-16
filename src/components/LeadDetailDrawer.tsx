@@ -40,9 +40,13 @@ export function LeadDetailDrawer({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
-    setDraft(lead);
-    setQuickNote('');
-    setConfirmingDelete(false);
+    if (!lead) {
+      setDraft(null);
+    } else if (!draft || lead.id !== draft.id) {
+      setDraft(lead);
+      setQuickNote('');
+      setConfirmingDelete(false);
+    }
   }, [lead]);
 
   if (!lead || !draft) return null;
