@@ -9,6 +9,13 @@ export const LEAD_STATUSES = [
 
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
+export interface ServiceLog {
+  id: string;
+  timestamp: string;
+  author: string;
+  content: string;
+}
+
 export interface Lead {
   id: string;
   createdAt: string;
@@ -29,6 +36,7 @@ export interface Lead {
   estimatedValue: number;
   nextFollowUp: string;
   notes: string;
+  serviceLogs?: ServiceLog[];
 }
 
 export interface AgencySettings {

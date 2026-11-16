@@ -235,6 +235,7 @@ export function useCrmStore() {
         estimatedValue: Math.max(0, Number(input.estimatedValue) || 0),
         nextFollowUp: input.nextFollowUp || '',
         notes: input.notes.trim(),
+        serviceLogs: [],
       };
 
       setLeads((prev) => [newLead, ...prev]);
@@ -287,18 +288,30 @@ export function useCrmStore() {
 
       lastLocalMutationAtRef.current = Date.now();
       const nextCount = (Number(existing.callCount) || 0) + 1;
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const timestamp = `${day}/${month}/${year} ${hours}:${minutes}`;
+
+      const newLog = {
+        id: generateUuid(),
+        timestamp,
+        author: settings.activeUser,
+        content: `Ligação #${nextCount} realizada`,
+      };
+
       const updatedLead: Lead = {
         ...existing,
         callCount: nextCount,
-        notes: appendDatedNote(
-          existing.notes,
-          `Ligação #${nextCount} realizada (${settings.activeUser})`
-        ),
-        updatedAt: new Date().toISOString(),
+        serviceLogs: [newLog, ...(existing.serviceLogs || [])],
+        updatedAt: now.toISOString(),
       };
 
       setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)));
-      pushToast('+1 ligação registrada', 'success');
+      pushToast('+1 ligação registrada nos registros de atendimento', 'success');
       void syncInBackground(settings.appsScriptUrl, { action: 'update', lead: updatedLead });
     },
     [leads, pushToast, settings.activeUser, settings.appsScriptUrl, syncInBackground]

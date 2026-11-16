@@ -1,4 +1,4 @@
-import { FollowUpUrgency, LEAD_STATUSES, Lead, LeadStatus } from '../types/crm';
+import { FollowUpUrgency, LEAD_STATUSES, Lead, LeadStatus, ServiceLog } from '../types/crm';
 
 export const NICHE_SUGGESTIONS = [
   'Clínica',
@@ -333,6 +333,30 @@ export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOw
     ? (statusStr as LeadStatus)
     : 'Para Prospectar';
 
+  let parsedServiceLogs: ServiceLog[] = [];
+  if (Array.isArray(raw.serviceLogs)) {
+    parsedServiceLogs = raw.serviceLogs.map((item: any) => ({
+      id: String(item.id || generateUuid()),
+      timestamp: String(item.timestamp || new Date().toLocaleString('pt-BR')),
+      author: String(item.author || fallbackOwner),
+      content: String(item.content || ''),
+    }));
+  } else if (typeof raw.serviceLogs === 'string' && raw.serviceLogs.trim()) {
+    try {
+      const parsed = JSON.parse(raw.serviceLogs);
+      if (Array.isArray(parsed)) {
+        parsedServiceLogs = parsed.map((item: any) => ({
+          id: String(item.id || generateUuid()),
+          timestamp: String(item.timestamp || ''),
+          author: String(item.author || ''),
+          content: String(item.content || ''),
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return {
     id: String(raw.id || generateUuid()),
     createdAt: String(raw.createdAt || new Date().toISOString()),
@@ -353,5 +377,6 @@ export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOw
     estimatedValue: Math.max(0, Number(raw.estimatedValue) || 0),
     nextFollowUp: raw.nextFollowUp ? String(raw.nextFollowUp).slice(0, 10) : '',
     notes: String(raw.notes || ''),
+    serviceLogs: parsedServiceLogs,
   };
 }
