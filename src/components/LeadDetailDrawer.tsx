@@ -128,7 +128,9 @@ export function LeadDetailDrawer({
   };
 
   const inputClass =
-    'w-full rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none';
+    'w-full rounded-md border border-zinc-800 bg-[#09090B] px-2.5 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none';
+  const labelClass = 'block text-[11px] font-medium text-zinc-300 mb-0.5 truncate';
+  const telHref = draft.phone ? `tel:${draft.phone.replace(/[^\d+]/g, '')}` : null;
 
   const renderLinkButton = (raw: string, label: string) => {
     const href = normalizeExternalUrl(raw);
@@ -139,7 +141,7 @@ export function LeadDetailDrawer({
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Abrir ${label}`}
-        className="inline-flex items-center gap-1 text-[11px] text-orange-400 hover:text-orange-300 hover:underline"
+        className="inline-flex items-center gap-1 text-[11px] text-orange-400 hover:text-orange-300 hover:underline shrink-0"
       >
         <ExternalLink className="h-3 w-3" />
         <span>Abrir</span>
@@ -148,31 +150,99 @@ export function LeadDetailDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-lead-title"
         className="w-[90vw] h-[90vh] max-w-[1650px] max-h-[960px] bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between gap-3 bg-[#09090B]/60 shrink-0">
-          <div className="min-w-0">
-            <h2
-              id="modal-lead-title"
-              className="font-display text-lg font-bold tracking-tight text-zinc-50 truncate"
-            >
-              {draft.companyName || 'Detalhes do Lead'}
-            </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Criado em {formatDateBR(draft.createdAt)} · Atualizado em {formatDateBR(draft.updatedAt)} · Etapa atual: <span className="text-[#F97316] font-semibold">{draft.status}</span>
+        {/* Top Header: Company Info + Large Prominent Decisor & Contact Phone */}
+        <div className="px-5 py-3 border-b border-zinc-800 bg-[#09090B]/90 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+              <h2
+                id="modal-lead-title"
+                className="font-display text-base sm:text-lg font-bold tracking-tight text-zinc-100 truncate"
+              >
+                {draft.companyName || 'Detalhes do Lead'}
+              </h2>
+              <span className="text-xs font-semibold text-[#F97316] whitespace-nowrap">
+                {draft.status}
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+              Criado em {formatDateBR(draft.createdAt)} · Atualizado em {formatDateBR(draft.updatedAt)} · Resp.: {draft.owner}
             </p>
           </div>
+
+          {/* Large Eye-Catching Decisor & Contact Phone Banner */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-5 rounded-xl border border-orange-500/35 bg-[#18181B] px-4 py-2 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <User className="h-4 w-4 text-[#F97316]" />
+              </div>
+              <div className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Decisor
+                </span>
+                <span
+                  data-testid="lead-hero-decisor"
+                  className="block font-display text-base sm:text-xl font-bold text-white leading-tight truncate max-w-[220px]"
+                >
+                  {draft.contactName.trim() || 'Não informado'}
+                </span>
+              </div>
+            </div>
+
+            <div className="hidden sm:block h-8 w-px bg-zinc-700" aria-hidden="true" />
+
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <Phone className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Telefone para Contato
+                </span>
+                {telHref ? (
+                  <a
+                    href={telHref}
+                    data-testid="lead-hero-phone"
+                    className="block font-mono tabular-nums text-base sm:text-xl font-bold text-[#F97316] hover:text-orange-300 leading-tight whitespace-nowrap transition-colors"
+                  >
+                    {draft.phone}
+                  </a>
+                ) : (
+                  <span
+                    data-testid="lead-hero-phone"
+                    className="block font-mono text-base sm:text-lg font-semibold text-zinc-400 leading-tight"
+                  >
+                    Sem telefone
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Chamar no WhatsApp"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span className="hidden md:inline">WhatsApp</span>
+              </a>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar detalhes do lead"
-            className="p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer transition-colors"
+            className="p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer transition-colors shrink-0"
           >
             <X className="h-5 w-5" />
           </button>
@@ -180,81 +250,65 @@ export function LeadDetailDrawer({
 
         {/* Form Content + Pinned Footer */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-10 gap-6 min-h-0">
-            
-            {/* Left Column: 40% (lg:col-span-4) - Contact counters, interactive action buttons & service logs history */}
-            <div className="lg:col-span-4 flex flex-col gap-4 min-h-0">
-              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3 shrink-0">
-                <div className="flex items-center justify-between">
+          <div className="flex-1 overflow-y-auto lg:overflow-hidden p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-10 gap-4 sm:gap-5 min-h-0">
+            {/* Left Column: 40% (lg:col-span-4) - Contact Action Buttons + Service Logs History */}
+            <div className="lg:col-span-4 flex flex-col gap-3 min-h-0">
+              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-3.5 flex flex-col gap-2.5 shrink-0">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-                    Registros e Evolução de Contato
+                    Registrar Contato & Evolução
                   </span>
-                  <span className="font-mono text-xs text-orange-400 font-bold">
+                  <span className="font-mono tabular-nums text-xs text-orange-400 font-bold">
                     Total: {draft.callCount}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400">
-                  Clique nos botões abaixo para registrar um contato, marcar a evolução no funil e salvar no histórico.
-                </p>
 
                 {/* 3 Clickable Contact Type Buttons */}
-                <div className="grid grid-cols-3 gap-2 pt-1">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => handleOpenContactForm('Ligação')}
-                    className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                       activeContactType === 'Ligação'
                         ? 'bg-orange-500 text-white border-orange-400'
                         : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
                     }`}
                   >
-                    <Phone className="h-4 w-4" />
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
                     <span>Ligação</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenContactForm('WhatsApp')}
-                    className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                       activeContactType === 'WhatsApp'
                         ? 'bg-emerald-600 text-white border-emerald-500'
                         : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
                     }`}
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <MessageCircle className="h-3.5 w-3.5 shrink-0" />
                     <span>WhatsApp</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenContactForm('Pessoal')}
-                    className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                       activeContactType === 'Pessoal'
                         ? 'bg-amber-600 text-white border-amber-500'
                         : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
                     }`}
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="h-3.5 w-3.5 shrink-0" />
                     <span>Pessoal</span>
                   </button>
                 </div>
-
-                {whatsappUrl && (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full mt-1 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3 py-2 text-xs font-medium transition-colors"
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    <span>Abrir Chat WhatsApp Direto</span>
-                  </a>
-                )}
               </div>
 
-              {/* Active Contact Input Form (Appears when a contact button is clicked) */}
+              {/* Active Contact Input Form */}
               {activeContactType && (
-                <div className="rounded-xl border border-orange-500/40 bg-[#09090B] p-4 flex flex-col gap-3 animate-fadeIn shrink-0">
+                <div className="rounded-xl border border-orange-500/40 bg-[#09090B] p-3.5 flex flex-col gap-2.5 shrink-0">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-orange-400">
                       Novo Registro de {activeContactType} ({activeUser})
@@ -262,6 +316,7 @@ export function LeadDetailDrawer({
                     <button
                       type="button"
                       onClick={() => setActiveContactType(null)}
+                      aria-label="Fechar registro de contato"
                       className="text-zinc-400 hover:text-zinc-100 cursor-pointer"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -269,28 +324,28 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="contact-text" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                    <label htmlFor="contact-text" className={labelClass}>
                       Detalhes do Contato / Atendimento
                     </label>
                     <textarea
                       id="contact-text"
-                      rows={3}
+                      rows={2}
                       value={contactText}
                       onChange={(e) => setContactText(e.target.value)}
                       placeholder="Descreva o que foi conversado..."
-                      className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none resize-none"
+                      className="w-full rounded-md border border-zinc-800 bg-[#111114] px-2.5 py-1.5 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none resize-none"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="target-status" className="block text-[11px] font-medium text-zinc-300 mb-1">
+                    <label htmlFor="target-status" className={labelClass}>
                       Avançar / Marcar Etapa no Funil
                     </label>
                     <select
                       id="target-status"
                       value={targetStatus}
                       onChange={(e) => setTargetStatus(e.target.value as LeadStatus)}
-                      className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
+                      className="w-full rounded-md border border-zinc-800 bg-[#111114] px-2.5 py-1.5 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
                     >
                       {LEAD_STATUSES.map((st) => (
                         <option key={st} value={st} className="bg-[#18181B] text-zinc-100">
@@ -300,7 +355,7 @@ export function LeadDetailDrawer({
                     </select>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-1">
+                  <div className="flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveContactType(null)}
@@ -311,7 +366,7 @@ export function LeadDetailDrawer({
                     <button
                       type="button"
                       onClick={handleSaveContactRecord}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#F97316] hover:bg-[#EA580C] text-xs font-semibold text-white cursor-pointer shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#F97316] hover:bg-[#EA580C] text-xs font-semibold text-white cursor-pointer"
                     >
                       <CalendarPlus className="h-3.5 w-3.5" />
                       <span>Salvar e Atualizar Funil</span>
@@ -321,60 +376,73 @@ export function LeadDetailDrawer({
               )}
 
               {/* Service Logs History */}
-              <div className="flex-1 rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3 min-h-[260px] overflow-hidden">
+              <div className="flex-1 rounded-xl border border-zinc-800 bg-[#09090B] p-3.5 flex flex-col gap-2.5 min-h-[200px] overflow-hidden">
                 <div className="flex items-center justify-between gap-2 shrink-0">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-emerald-400" />
+                    <Clock className="h-3.5 w-3.5 text-emerald-400" />
                     <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
                       Histórico de Atendimentos
                     </h3>
                   </div>
-                  <span className="text-[11px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
-                    {(draft.serviceLogs || []).length}
+                  <span className="text-xs font-mono tabular-nums text-emerald-400 font-semibold">
+                    {(draft.serviceLogs || []).length} registros
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1 min-h-[180px]">
+                <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
                   {(!draft.serviceLogs || draft.serviceLogs.length === 0) ? (
-                    <div className="py-12 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
+                    <div className="py-10 px-3 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
                       Nenhum registro de atendimento realizado. Clique em Ligação, WhatsApp ou Pessoal acima para registrar.
                     </div>
                   ) : (
                     draft.serviceLogs.map((log) => (
                       <div
                         key={log.id}
-                        className="rounded-lg border border-zinc-800 bg-[#18181B] p-3 flex flex-col gap-1.5 text-xs"
+                        className="rounded-lg border border-zinc-800 bg-[#18181B] p-2.5 flex flex-col gap-1 text-xs"
                       >
-                        <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-400 border-b border-zinc-800/80 pb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-emerald-400 font-semibold">{log.timestamp}</span>
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-400 border-b border-zinc-800/80 pb-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono tabular-nums text-emerald-400 font-semibold whitespace-nowrap">
+                              {log.timestamp}
+                            </span>
                             {log.contactType && (
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                log.contactType === 'Ligação' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
-                                log.contactType === 'WhatsApp' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                                'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              }`}>
-                                {log.contactType}
-                              </span>
+                              <>
+                                <span aria-hidden="true">·</span>
+                                <span
+                                  className={`font-semibold whitespace-nowrap ${
+                                    log.contactType === 'Ligação'
+                                      ? 'text-orange-400'
+                                      : log.contactType === 'WhatsApp'
+                                        ? 'text-emerald-400'
+                                        : 'text-amber-400'
+                                  }`}
+                                >
+                                  {log.contactType}
+                                </span>
+                              </>
                             )}
                           </div>
                           <button
                             type="button"
                             onClick={() => handleDeleteServiceLog(log.id)}
+                            aria-label={`Remover registro de ${log.timestamp}`}
                             title="Remover registro"
-                            className="text-zinc-500 hover:text-red-400 cursor-pointer p-0.5"
+                            className="text-zinc-500 hover:text-red-400 cursor-pointer p-0.5 shrink-0"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <p className="text-zinc-100 whitespace-pre-wrap leading-relaxed">
+                        <p className="text-zinc-100 whitespace-pre-wrap leading-snug">
                           {log.content}
                         </p>
-                        {log.targetStatus && (
-                          <div className="text-[10px] text-zinc-400 pt-0.5">
-                            Etapa no funil: <span className="text-[#F97316] font-medium">{log.targetStatus}</span> · <span className="text-zinc-300">Por {log.author}</span>
-                          </div>
-                        )}
+                        <div className="text-[11px] text-zinc-400">
+                          {log.targetStatus && (
+                            <>
+                              Etapa: <span className="text-[#F97316] font-medium">{log.targetStatus}</span> ·{' '}
+                            </>
+                          )}
+                          <span>Por {log.author}</span>
+                        </div>
                       </div>
                     ))
                   )}
@@ -382,39 +450,40 @@ export function LeadDetailDrawer({
               </div>
             </div>
 
-            {/* Right Column: 60% (lg:col-span-6) - 1. Anotações do Lead, 2. Informações Cadastrais, 3. Presença Digital */}
-            <div className="lg:col-span-6 flex flex-col gap-5 min-h-0 overflow-y-auto pr-1">
-              
+            {/* Right Column: 60% (lg:col-span-6) - Compact Zero-Scroll Layout: 1. Anotações, 2. Informações Cadastrais, 3. Presença Digital */}
+            <div className="lg:col-span-6 flex flex-col gap-3 min-h-0 lg:overflow-y-auto pr-0.5">
               {/* 1. Anotações do Lead */}
-              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[#F97316]" />
-                  <label htmlFor="ed-notes" className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-                    Anotações do Lead
-                  </label>
+              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-3 flex flex-col gap-1.5 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-[#F97316]" />
+                    <label htmlFor="ed-notes" className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                      Anotações do Lead
+                    </label>
+                  </div>
+                  <span className="text-[11px] text-zinc-400">
+                    Briefings, acordos e notas livres
+                  </span>
                 </div>
-                <p className="text-[11px] text-zinc-400">
-                  Bloco de anotações livres sobre o cliente, acordos e observações gerais.
-                </p>
                 <textarea
                   id="ed-notes"
-                  rows={3}
+                  rows={2}
                   value={draft.notes}
                   onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
                   placeholder="Digite as anotações do lead..."
-                  className="w-full rounded-md border border-zinc-800 bg-[#111114] px-3 py-2 text-xs text-zinc-100 leading-relaxed focus:border-orange-500 focus:outline-none resize-y"
+                  className="w-full rounded-md border border-zinc-800 bg-[#111114] px-2.5 py-1.5 text-xs text-zinc-100 leading-relaxed focus:border-orange-500 focus:outline-none resize-y min-h-[54px]"
                 />
               </div>
 
-              {/* 2. Informações Cadastrais */}
-              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-4">
+              {/* 2. Informações Cadastrais (Compact 4-col grid so all 9 fields fit cleanly in 3 rows) */}
+              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-3 flex flex-col gap-2 shrink-0">
                 <span className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
                   Informações Cadastrais
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="sm:col-span-2">
-                    <label htmlFor="ed-company" className="block text-xs font-medium text-zinc-300 mb-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="lg:col-span-2">
+                    <label htmlFor="ed-company" className={labelClass}>
                       Nome da Empresa <span className="text-red-400">*</span>
                     </label>
                     <input
@@ -428,7 +497,7 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="ed-status" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-status" className={labelClass}>
                       Etapa do Funil
                     </label>
                     <select
@@ -446,7 +515,7 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="ed-owner" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-owner" className={labelClass}>
                       Sócio Responsável
                     </label>
                     <select
@@ -464,7 +533,7 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="ed-contact" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-contact" className={labelClass}>
                       Nome do Decisor
                     </label>
                     <input
@@ -477,7 +546,7 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="ed-phone" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-phone" className={labelClass}>
                       Telefone / WhatsApp
                     </label>
                     <input
@@ -490,7 +559,7 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="ed-niche" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-niche" className={labelClass}>
                       Nicho / Segmento
                     </label>
                     <input
@@ -503,20 +572,7 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <label htmlFor="ed-site" className="block text-xs font-medium text-zinc-300 mb-1">
-                      Diagnóstico presença atual
-                    </label>
-                    <input
-                      id="ed-site"
-                      type="text"
-                      value={draft.websiteOrSocial}
-                      onChange={(e) => setDraft({ ...draft, websiteOrSocial: e.target.value })}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="ed-value" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-value" className={labelClass}>
                       Valor Estimado (R$)
                     </label>
                     <input
@@ -528,12 +584,12 @@ export function LeadDetailDrawer({
                       onChange={(e) =>
                         setDraft({ ...draft, estimatedValue: Math.max(0, Number(e.target.value) || 0) })
                       }
-                      className="w-full rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-sm font-mono tabular-nums text-zinc-100 focus:border-orange-500 focus:outline-none"
+                      className="w-full rounded-md border border-zinc-800 bg-[#09090B] px-2.5 py-1.5 text-xs font-mono tabular-nums text-zinc-100 focus:border-orange-500 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="ed-followup" className="block text-xs font-medium text-zinc-300 mb-1">
+                    <label htmlFor="ed-followup" className={labelClass}>
                       Próximo Follow-up
                     </label>
                     <input
@@ -544,18 +600,31 @@ export function LeadDetailDrawer({
                       className={inputClass}
                     />
                   </div>
+
+                  <div className="sm:col-span-1 lg:col-span-3">
+                    <label htmlFor="ed-site" className={labelClass}>
+                      Diagnóstico presença atual
+                    </label>
+                    <input
+                      id="ed-site"
+                      type="text"
+                      value={draft.websiteOrSocial}
+                      onChange={(e) => setDraft({ ...draft, websiteOrSocial: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* 3. Presença Digital */}
-              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-4 flex flex-col gap-3">
+              {/* 3. Presença Digital & Links (Compact 3-col grid so all 5 fields fit cleanly in 2 rows) */}
+              <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-3 flex flex-col gap-2 shrink-0">
                 <span className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
                   Presença Digital & Links
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label htmlFor="ed-url-site" className="text-xs font-medium text-zinc-300">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <label htmlFor="ed-url-site" className="text-[11px] font-medium text-zinc-300 truncate">
                         URL do Site
                       </label>
                       {renderLinkButton(draft.websiteUrl, 'Site')}
@@ -571,8 +640,8 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label htmlFor="ed-url-gmn" className="text-xs font-medium text-zinc-300">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <label htmlFor="ed-url-gmn" className="text-[11px] font-medium text-zinc-300 truncate">
                         Google Meu Negócio
                       </label>
                       {renderLinkButton(draft.googleBusinessUrl, 'Google Meu Negócio')}
@@ -588,8 +657,8 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label htmlFor="ed-url-instagram" className="text-xs font-medium text-zinc-300">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <label htmlFor="ed-url-instagram" className="text-[11px] font-medium text-zinc-300 truncate">
                         Instagram
                       </label>
                       {renderLinkButton(draft.instagramUrl, 'Instagram')}
@@ -605,8 +674,8 @@ export function LeadDetailDrawer({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label htmlFor="ed-url-facebook" className="text-xs font-medium text-zinc-300">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <label htmlFor="ed-url-facebook" className="text-[11px] font-medium text-zinc-300 truncate">
                         Facebook
                       </label>
                       {renderLinkButton(draft.facebookUrl, 'Facebook')}
@@ -620,21 +689,37 @@ export function LeadDetailDrawer({
                       className={inputClass}
                     />
                   </div>
+
+                  <div className="sm:col-span-2 lg:col-span-2">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <label htmlFor="ed-url-other" className="text-[11px] font-medium text-zinc-300 truncate">
+                        Outras mídias
+                      </label>
+                      {renderLinkButton(draft.otherSocialUrl, 'Outras mídias')}
+                    </div>
+                    <input
+                      id="ed-url-other"
+                      type="text"
+                      value={draft.otherSocialUrl}
+                      onChange={(e) => setDraft({ ...draft, otherSocialUrl: e.target.value })}
+                      placeholder="LinkedIn, TikTok, YouTube..."
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
               </div>
-
             </div>
           </div>
 
           {/* Pinned Footer Actions */}
-          <div className="shrink-0 px-6 py-4 border-t border-zinc-800 bg-[#09090B] flex items-center justify-between gap-3">
+          <div className="shrink-0 px-5 py-3 border-t border-zinc-800 bg-[#09090B] flex items-center justify-between gap-3">
             {!confirmingDelete ? (
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
                 <span>Excluir lead</span>
               </button>
             ) : (
@@ -645,7 +730,7 @@ export function LeadDetailDrawer({
                     onDelete(draft.id);
                     onClose();
                   }}
-                  className="rounded-lg bg-red-600 hover:bg-red-500 px-3 py-2 text-xs font-semibold text-white cursor-pointer"
+                  className="rounded-lg bg-red-600 hover:bg-red-500 px-3 py-1.5 text-xs font-semibold text-white cursor-pointer"
                 >
                   Confirmar exclusão
                 </button>
@@ -659,19 +744,19 @@ export function LeadDetailDrawer({
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg border border-zinc-800 bg-[#18181B] text-xs font-medium text-zinc-300 hover:text-zinc-100 cursor-pointer transition-colors"
+                className="px-4 py-1.5 rounded-lg border border-zinc-800 bg-[#18181B] text-xs font-medium text-zinc-300 hover:text-zinc-100 cursor-pointer transition-colors"
               >
                 Fechar
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-xs font-semibold text-white cursor-pointer shadow-md transition-colors"
+                className="inline-flex items-center gap-1.5 px-5 py-1.5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-xs font-semibold text-white cursor-pointer shadow-md transition-colors"
               >
-                <Save className="h-4 w-4" />
+                <Save className="h-3.5 w-3.5" />
                 <span>Salvar alterações</span>
               </button>
             </div>
