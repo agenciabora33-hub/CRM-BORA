@@ -18,6 +18,7 @@ import {
   generateCsvContent,
   getFollowUpUrgency,
   normalizeExternalUrl,
+  NICHE_SUGGESTIONS,
 } from '../utils/crmLogic';
 
 interface TableViewProps {
@@ -40,7 +41,9 @@ export function TableView({
   const [search, setSearch] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [onlyOverdue, setOnlyOverdue] = useState(false);
+  const [nicheFilter, setNicheFilter] = useState('all');
+  const [followUpFilter, setFollowUpFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('recent');
 
   const filteredLeads = useMemo(
     () =>
@@ -48,19 +51,27 @@ export function TableView({
         search,
         owner: ownerFilter,
         status: statusFilter,
-        onlyOverdue,
+        niche: nicheFilter,
+        followUpFilter,
+        sortBy,
       }),
-    [leads, ownerFilter, onlyOverdue, search, statusFilter]
+    [leads, ownerFilter, statusFilter, nicheFilter, followUpFilter, search, sortBy]
   );
 
   const hasActiveFilters =
-    search.trim() !== '' || ownerFilter !== 'all' || statusFilter !== 'all' || onlyOverdue;
+    search.trim() !== '' ||
+    ownerFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    nicheFilter !== 'all' ||
+    followUpFilter !== 'all';
 
   const clearFilters = () => {
     setSearch('');
     setOwnerFilter('all');
     setStatusFilter('all');
-    setOnlyOverdue(false);
+    setNicheFilter('all');
+    setFollowUpFilter('all');
+    setSortBy('recent');
   };
 
   const handleExportCsv = () => {
@@ -98,14 +109,27 @@ export function TableView({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-[#18181B] px-3 py-2 text-xs font-medium text-zinc-100 hover:bg-zinc-800 hover:border-zinc-700 transition-colors whitespace-nowrap cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5 text-[#F97316]" />
-          <span>Exportar CSV</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            aria-label="Ordenar tabela"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded-md border border-zinc-800 bg-[#111114] px-2.5 py-1.5 text-xs text-zinc-200 focus:border-orange-500 focus:outline-none cursor-pointer"
+          >
+            <option value="recent">Mais recentes</option>
+            <option value="valueDesc">Maior valor (R$)</option>
+            <option value="nameAsc">Nome da empresa (A-Z)</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-[#18181B] px-3 py-2 text-xs font-medium text-zinc-100 hover:bg-zinc-800 hover:border-zinc-700 transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <Download className="h-3.5 w-3.5 text-[#F97316]" />
+            <span>Exportar CSV</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -116,8 +140,8 @@ export function TableView({
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por empresa, contato, nicho, links, telefone ou observação..."
-            aria-label="Buscar prospects"
+            placeholder="Pesquisar diretamente por contato, empresa, telefone ou observação..."
+            aria-label="Pesquisar diretamente por contato"
             className="w-full rounded-md border border-zinc-800 bg-[#09090B] pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none"
           />
         </div>
@@ -126,7 +150,7 @@ export function TableView({
           aria-label="Filtrar por responsável"
           value={ownerFilter}
           onChange={(e) => setOwnerFilter(e.target.value)}
-          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-sm text-zinc-100 focus:border-orange-500 focus:outline-none"
+          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
         >
           <option value="all">Todos os responsáveis</option>
           {teamMembers.map((member) => (
@@ -140,7 +164,7 @@ export function TableView({
           aria-label="Filtrar por etapa do funil"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-sm text-zinc-100 focus:border-orange-500 focus:outline-none"
+          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
         >
           <option value="all">Todas as etapas</option>
           {LEAD_STATUSES.map((status) => (
@@ -150,19 +174,31 @@ export function TableView({
           ))}
         </select>
 
-        <button
-          type="button"
-          onClick={() => setOnlyOverdue((v) => !v)}
-          aria-pressed={onlyOverdue}
-          className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
-            onlyOverdue
-              ? 'bg-red-500/15 border-red-500/40 text-red-300'
-              : 'bg-[#09090B] border-zinc-800 text-zinc-400 hover:text-zinc-100'
-          }`}
+        <select
+          aria-label="Filtrar por nicho"
+          value={nicheFilter}
+          onChange={(e) => setNicheFilter(e.target.value)}
+          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
         >
-          <AlertTriangle className="h-3.5 w-3.5" />
-          <span>Follow-up vencido</span>
-        </button>
+          <option value="all">Todos os nichos</option>
+          {NICHE_SUGGESTIONS.map((niche) => (
+            <option key={niche} value={niche}>
+              {niche}
+            </option>
+          ))}
+        </select>
+
+        <select
+          aria-label="Filtrar por follow-up"
+          value={followUpFilter}
+          onChange={(e) => setFollowUpFilter(e.target.value)}
+          className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
+        >
+          <option value="all">Todos os follow-ups</option>
+          <option value="overdue">Vencidos</option>
+          <option value="today">Para hoje</option>
+          <option value="upcoming">Próximos</option>
+        </select>
 
         {hasActiveFilters && (
           <button
@@ -171,7 +207,7 @@ export function TableView({
             className="inline-flex items-center gap-1 rounded-md px-2.5 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors whitespace-nowrap cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
-            <span>Limpar</span>
+            <span>Limpar filtros</span>
           </button>
         )}
       </div>

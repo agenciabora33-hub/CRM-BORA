@@ -21,6 +21,7 @@ import {
 interface LeadDetailDrawerProps {
   lead: Lead | null;
   teamMembers: [string, string];
+  activeUser: string;
   onClose: () => void;
   onSave: (updated: Lead) => void;
   onDelete: (leadId: string) => void;
@@ -29,6 +30,7 @@ interface LeadDetailDrawerProps {
 export function LeadDetailDrawer({
   lead,
   teamMembers,
+  activeUser,
   onClose,
   onSave,
   onDelete,
@@ -49,7 +51,8 @@ export function LeadDetailDrawer({
 
   const handleAddDatedNote = () => {
     if (!quickNote.trim()) return;
-    const updatedNotes = appendDatedNote(draft.notes, quickNote);
+    const author = activeUser || draft.owner || 'Cláudio';
+    const updatedNotes = appendDatedNote(draft.notes, quickNote, author);
     const nextDraft = { ...draft, notes: updatedNotes };
     setDraft(nextDraft);
     setQuickNote('');
@@ -402,8 +405,9 @@ export function LeadDetailDrawer({
 
             {/* Quick dated note adder */}
             <div className="pt-3 border-t border-zinc-800 flex flex-col gap-2">
-              <label htmlFor="ed-quick-note" className="text-xs font-medium text-zinc-200">
-                Registrar anotação rápida
+              <label htmlFor="ed-quick-note" className="text-xs font-medium text-zinc-200 flex items-center justify-between">
+                <span>Adicionar Nova Observação</span>
+                <span className="text-[11px] text-orange-400 font-mono">Registra data, hora e {activeUser}</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -417,7 +421,7 @@ export function LeadDetailDrawer({
                       handleAddDatedNote();
                     }
                   }}
-                  placeholder="Ex: Enviei proposta comercial por WhatsApp..."
+                  placeholder="Ex: Cliente solicitou contato na próxima terça-feira..."
                   className="flex-1 rounded-md border border-zinc-800 bg-[#09090B] px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none"
                 />
                 <button
@@ -426,7 +430,7 @@ export function LeadDetailDrawer({
                   className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-[#18181B] hover:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-100 whitespace-nowrap cursor-pointer"
                 >
                   <CalendarPlus className="h-3.5 w-3.5 text-[#F97316]" />
-                  <span>Adicionar nota com data de hoje</span>
+                  <span>Adicionar Observação</span>
                 </button>
               </div>
             </div>

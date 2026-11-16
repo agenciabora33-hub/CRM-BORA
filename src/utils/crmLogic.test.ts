@@ -103,9 +103,9 @@ test('dates and BRL currency format properly', () => {
   assert.match(formatCurrencyBRL(4800), /R\$\s*4\.800,00/);
 });
 
-test('appendDatedNote prepends dated entry cleanly', () => {
-  const updated = appendDatedNote('Nota antiga', 'Ligação sem resposta', refDate);
-  assert.equal(updated, '13/11/2026: Ligação sem resposta\nNota antiga');
+test('appendDatedNote prepends dated entry with time and author cleanly', () => {
+  const updated = appendDatedNote('Nota antiga', 'Ligação sem resposta', 'Cláudio', refDate);
+  assert.equal(updated, '[13/11/2026 12:00 - Cláudio] Ligação sem resposta\nNota antiga');
 });
 
 test('filterLeads combines search, owner, status, and overdue filters', () => {

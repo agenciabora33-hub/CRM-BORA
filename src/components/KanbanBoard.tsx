@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Filter, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertTriangle, Filter, Plus, Search, X } from 'lucide-react';
 import { LEAD_STATUSES, Lead, LeadStatus } from '../types/crm';
-import { formatCurrencyBRL } from '../utils/crmLogic';
+import { filterLeads, formatCurrencyBRL, NICHE_SUGGESTIONS } from '../utils/crmLogic';
 import { KanbanCard } from './KanbanCard';
 
 interface KanbanBoardProps {
@@ -32,10 +32,37 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<LeadStatus | null>(null);
+  const [search, setSearch] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
+  const [nicheFilter, setNicheFilter] = useState<string>('all');
+  const [followUpFilter, setFollowUpFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('recent');
 
-  const visibleLeads =
-    ownerFilter === 'all' ? leads : leads.filter((lead) => lead.owner === ownerFilter);
+  const visibleLeads = useMemo(
+    () =>
+      filterLeads(leads, {
+        search,
+        owner: ownerFilter,
+        niche: nicheFilter,
+        followUpFilter,
+        sortBy,
+      }),
+    [leads, search, ownerFilter, nicheFilter, followUpFilter, sortBy]
+  );
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    ownerFilter !== 'all' ||
+    nicheFilter !== 'all' ||
+    followUpFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearch('');
+    setOwnerFilter('all');
+    setNicheFilter('all');
+    setFollowUpFilter('all');
+    setSortBy('recent');
+  };
 
   const handleDragStart = (e: React.DragEvent<HTMLElement>, leadId: string) => {
     setDraggedLeadId(leadId);
@@ -63,47 +90,99 @@ export function KanbanBoard({
 
   return (
     <section aria-label="Quadro Kanban de Prospecção" className="flex flex-col gap-4">
-      {/* Compact Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-xl font-bold tracking-tight text-zinc-50">
-            Funil de Prospecção
-          </h1>
-          <p className="text-xs text-zinc-400">
-            Arraste os cards entre colunas ou use o seletor rápido para atualizar a etapa em tempo real.
-          </p>
+      {/* Toolbar with Search and Enhanced Filters */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="font-display text-xl font-bold tracking-tight text-zinc-50">
+              Funil de Prospecção
+            </h1>
+            <p className="text-xs text-zinc-400">
+              Exibindo {visibleLeads.length} de {leads.length} leads no funil. Arraste cards entre etapas.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Ordenar leads"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="rounded-md border border-zinc-800 bg-[#111114] px-2.5 py-1.5 text-xs text-zinc-200 focus:border-orange-500 focus:outline-none cursor-pointer"
+            >
+              <option value="recent">Mais recentes</option>
+              <option value="valueDesc">Maior valor (R$)</option>
+              <option value="nameAsc">Nome da empresa (A-Z)</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1 bg-[#111114] border border-zinc-800 rounded-lg p-1">
-          <Filter className="h-3.5 w-3.5 text-zinc-500 ml-2 mr-0.5" />
-          <button
-            type="button"
-            onClick={() => setOwnerFilter('all')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-              ownerFilter === 'all'
-                ? 'bg-[#F97316] text-white'
-                : 'text-zinc-400 hover:text-zinc-100'
-            }`}
+        {/* Search & Filter Bar */}
+        <div className="rounded-xl border border-zinc-800 bg-[#111114] p-3 flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="h-4 w-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar diretamente por contato, empresa, telefone ou observação..."
+              aria-label="Pesquisar diretamente por contato"
+              className="w-full rounded-md border border-zinc-800 bg-[#09090B] pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+
+          <select
+            aria-label="Filtrar por responsável"
+            value={ownerFilter}
+            onChange={(e) => setOwnerFilter(e.target.value)}
+            className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
           >
-            Todos ({leads.length})
-          </button>
-          {teamMembers.map((member) => {
-            const count = leads.filter((l) => l.owner === member).length;
-            return (
-              <button
-                key={member}
-                type="button"
-                onClick={() => setOwnerFilter(member)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-                  ownerFilter === member
-                    ? 'bg-[#F97316] text-white'
-                    : 'text-zinc-400 hover:text-zinc-100'
-                }`}
-              >
-                {member} ({count})
-              </button>
-            );
-          })}
+            <option value="all">Todos os sócios ({leads.length})</option>
+            {teamMembers.map((member) => {
+              const count = leads.filter((l) => l.owner === member).length;
+              return (
+                <option key={member} value={member}>
+                  {member} ({count})
+                </option>
+              );
+            })}
+          </select>
+
+          <select
+            aria-label="Filtrar por nicho"
+            value={nicheFilter}
+            onChange={(e) => setNicheFilter(e.target.value)}
+            className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
+          >
+            <option value="all">Todos os nichos</option>
+            {NICHE_SUGGESTIONS.map((niche) => (
+              <option key={niche} value={niche}>
+                {niche}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filtrar por follow-up"
+            value={followUpFilter}
+            onChange={(e) => setFollowUpFilter(e.target.value)}
+            className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
+          >
+            <option value="all">Todos os follow-ups</option>
+            <option value="overdue">Vencidos</option>
+            <option value="today">Para hoje</option>
+            <option value="upcoming">Próximos</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 rounded-md px-2.5 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors whitespace-nowrap cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span>Limpar filtros</span>
+            </button>
+          )}
         </div>
       </div>
 

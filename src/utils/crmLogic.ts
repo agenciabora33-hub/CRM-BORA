@@ -80,13 +80,21 @@ export function normalizeExternalUrl(raw: string): string | null {
   return null;
 }
 
-export function appendDatedNote(existingNotes: string, entry: string, date: Date = new Date()): string {
+export function appendDatedNote(
+  existingNotes: string,
+  entry: string,
+  author: string = 'Cláudio',
+  date: Date = new Date()
+): string {
   const trimmed = entry.trim();
   if (!trimmed) return existingNotes;
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  const formattedLine = `${day}/${month}/${year}: ${trimmed}`;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const authorTag = author ? ` - ${author}` : '';
+  const formattedLine = `[${day}/${month}/${year} ${hours}:${minutes}${authorTag}] ${trimmed}`;
   if (!existingNotes.trim()) return formattedLine;
   return `${formattedLine}\n${existingNotes.trim()}`;
 }
@@ -95,25 +103,43 @@ export interface LeadFilterOptions {
   search: string;
   owner: string;
   status: string;
+  niche: string;
+  followUpFilter: string;
+  sortBy: string;
   onlyOverdue: boolean;
 }
 
 export function filterLeads(
   leads: Lead[],
-  filters: LeadFilterOptions,
+  filters: Partial<LeadFilterOptions>,
   referenceDate: Date = new Date()
 ): Lead[] {
-  const q = filters.search.trim().toLowerCase();
-  return leads.filter((lead) => {
-    if (filters.owner && filters.owner !== 'all' && lead.owner !== filters.owner) {
+  const q = (filters.search ?? '').trim().toLowerCase();
+  const owner = filters.owner ?? 'all';
+  const status = filters.status ?? 'all';
+  const niche = filters.niche ?? 'all';
+  const followUpFilter = filters.followUpFilter ?? 'all';
+  const onlyOverdue = Boolean(filters.onlyOverdue);
+  const sortBy = filters.sortBy ?? 'recent';
+
+  const filtered = leads.filter((lead) => {
+    if (owner !== 'all' && lead.owner !== owner) {
       return false;
     }
-    if (filters.status && filters.status !== 'all' && lead.status !== filters.status) {
+    if (status !== 'all' && lead.status !== status) {
       return false;
     }
-    if (filters.onlyOverdue && getFollowUpUrgency(lead.nextFollowUp, lead.status, referenceDate) !== 'overdue') {
+    if (niche !== 'all' && lead.niche !== niche) {
       return false;
     }
+    const urgency = getFollowUpUrgency(lead.nextFollowUp, lead.status, referenceDate);
+    if (onlyOverdue && urgency !== 'overdue') {
+      return false;
+    }
+    if (followUpFilter === 'overdue' && urgency !== 'overdue') return false;
+    if (followUpFilter === 'today' && urgency !== 'today') return false;
+    if (followUpFilter === 'upcoming' && urgency !== 'upcoming' && urgency !== 'overdue' && urgency !== 'today') return false;
+
     if (q) {
       const haystack = [
         lead.companyName,
@@ -134,6 +160,18 @@ export function filterLeads(
       if (!haystack.includes(q)) return false;
     }
     return true;
+  });
+
+  return filtered.sort((a, b) => {
+    if (sortBy === 'valueDesc') {
+      return (Number(b.estimatedValue) || 0) - (Number(a.estimatedValue) || 0);
+    }
+    if (sortBy === 'nameAsc') {
+      return a.companyName.localeCompare(b.companyName);
+    }
+    const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return dateB - dateA;
   });
 }
 

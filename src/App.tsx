@@ -111,6 +111,7 @@ export default function App() {
       <LeadDetailDrawer
         lead={selectedLead}
         teamMembers={settings.teamMembers}
+        activeUser={settings.activeUser}
         onClose={() => setSelectedLeadId(null)}
         onSave={(updated) => updateLead(updated, 'Alterações salvas!')}
         onDelete={deleteLead}
