@@ -9,6 +9,7 @@ import {
   formatDateBR,
   generateCsvContent,
   getFollowUpUrgency,
+  mergeRemoteLeads,
   normalizeExternalUrl,
   normalizeLeadFromRemote,
 } from './crmLogic';
@@ -153,4 +154,94 @@ test('normalizeExternalUrl handles full URLs, bare domains, and @handles', () =>
   assert.equal(normalizeExternalUrl('minhaempresa.com.br'), 'https://minhaempresa.com.br');
   assert.equal(normalizeExternalUrl('@agenciabora'), 'https://instagram.com/agenciabora');
   assert.equal(normalizeExternalUrl('   '), null);
+});
+
+test('normalizeLeadFromRemote preserves full serviceLogs metadata from JSON string or array', () => {
+  const logs = [
+    {
+      id: 'log-1',
+      timestamp: '17/11/2026 14:20',
+      author: 'Cláudio',
+      contactType: 'WhatsApp',
+      targetStatus: 'Reunião / Proposta',
+      content: 'Enviou briefing completo por mensagem.',
+    },
+  ];
+
+  const normalizedFromString = normalizeLeadFromRemote(
+    {
+      id: 'lead-10',
+      companyName: 'Padaria Central',
+      serviceLogs: JSON.stringify(logs),
+    },
+    'Elis'
+  );
+
+  assert.equal(normalizedFromString.serviceLogs?.length, 1);
+  assert.equal(normalizedFromString.serviceLogs?.[0].contactType, 'WhatsApp');
+  assert.equal(normalizedFromString.serviceLogs?.[0].targetStatus, 'Reunião / Proposta');
+  assert.equal(normalizedFromString.serviceLogs?.[0].author, 'Cláudio');
+  assert.equal(normalizedFromString.serviceLogs?.[0].content, 'Enviou briefing completo por mensagem.');
+
+  const csv = generateCsvContent([normalizedFromString]);
+  assert.match(csv, /Registros de Atendimento/);
+  assert.match(csv, /Enviou briefing completo por mensagem\./);
+  assert.equal(
+    filterLeads([normalizedFromString], { search: 'briefing completo' }).length,
+    1
+  );
+});
+
+test('mergeRemoteLeads preserves local serviceLogs when remote Sheet lacks serviceLogs column or local is newer', () => {
+  const localLead: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-17T12:00:00.000Z',
+    serviceLogs: [
+      {
+        id: 'log-local-1',
+        timestamp: '17/11/2026 12:00',
+        author: 'Cláudio',
+        contactType: 'Pessoal',
+        targetStatus: 'Reunião / Proposta',
+        content: 'Visita presencial concluída.',
+      },
+    ],
+  };
+
+  // Case 1: Remote Code.gs has not been updated yet (hasServiceLogsColumn = false)
+  const remoteWithoutCol: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-17T12:05:00.000Z',
+    serviceLogs: [],
+  };
+  const mergedLegacy = mergeRemoteLeads([localLead], [remoteWithoutCol], false);
+  assert.equal(mergedLegacy[0].serviceLogs?.length, 1);
+  assert.equal(mergedLegacy[0].serviceLogs?.[0].content, 'Visita presencial concluída.');
+
+  // Case 2: Remote has serviceLogs column AND newer timestamp
+  const remoteWithCol: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-17T12:10:00.000Z',
+    serviceLogs: [
+      {
+        id: 'log-remote-2',
+        timestamp: '17/11/2026 12:10',
+        author: 'Elis',
+        contactType: 'Ligação',
+        targetStatus: 'Fechado (Ganho)',
+        content: 'Fechou contrato!',
+      },
+    ],
+  };
+  const mergedWithCol = mergeRemoteLeads([localLead], [remoteWithCol], true);
+  assert.equal(mergedWithCol[0].serviceLogs?.[0].id, 'log-remote-2');
+
+  // Case 3: Local edit is strictly newer than remote (offline edit protection)
+  const staleRemote: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-17T11:50:00.000Z',
+    serviceLogs: [],
+  };
+  const mergedLocalNewer = mergeRemoteLeads([localLead], [staleRemote], true);
+  assert.equal(mergedLocalNewer[0].serviceLogs?.[0].id, 'log-local-1');
 });

@@ -11,6 +11,7 @@ export interface RemoteAgencySettings {
 export interface SheetsFetchResult {
   leads: Lead[];
   settings: RemoteAgencySettings | null;
+  hasServiceLogsColumn: boolean;
 }
 
 export type SyncActionPayload =
@@ -230,9 +231,13 @@ function fetchWorkspaceViaJsonp(url: string): Promise<SheetsGetResponse> {
 
 function parseWorkspaceResponse(data: SheetsGetResponse, fallbackOwner: string): SheetsFetchResult {
   const rawLeads = Array.isArray(data.leads) ? data.leads : [];
+  const hasServiceLogsColumn = rawLeads.some((item) =>
+    Object.prototype.hasOwnProperty.call(item, 'serviceLogs')
+  );
   return {
     leads: rawLeads.map((item) => normalizeLeadFromRemote(item, fallbackOwner)),
     settings: normalizeRemoteSettings(data.settings),
+    hasServiceLogsColumn,
   };
 }
 

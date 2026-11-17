@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CalendarPlus,
   Clock,
@@ -6,7 +6,6 @@ import {
   FileText,
   MessageCircle,
   Phone,
-  Plus,
   Save,
   Trash2,
   User,
@@ -26,11 +25,44 @@ interface LeadDetailDrawerProps {
   teamMembers: [string, string];
   activeUser: string;
   onClose: () => void;
-  onSave: (updated: Lead) => void;
+  onSave: (updated: Lead, toastLabel?: string) => void;
   onDelete: (leadId: string) => void;
 }
 
 type ContactType = 'Ligação' | 'WhatsApp' | 'Pessoal';
+
+function formatCurrentTimestampBR(now: Date = new Date()): string {
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function appendContactRecordToDraft(
+  currentDraft: Lead,
+  contactType: ContactType,
+  text: string,
+  targetStatus: LeadStatus,
+  author: string
+): Lead {
+  const newLog: ServiceLog = {
+    id: generateUuid(),
+    timestamp: formatCurrentTimestampBR(),
+    author: author || currentDraft.owner || 'Cláudio',
+    contactType,
+    targetStatus,
+    content: text.trim(),
+  };
+
+  return {
+    ...currentDraft,
+    callCount: (Number(currentDraft.callCount) || 0) + 1,
+    status: targetStatus,
+    serviceLogs: [newLog, ...(Array.isArray(currentDraft.serviceLogs) ? currentDraft.serviceLogs : [])],
+  };
+}
 
 export function LeadDetailDrawer({
   lead,
@@ -45,11 +77,17 @@ export function LeadDetailDrawer({
   const [contactText, setContactText] = useState('');
   const [targetStatus, setTargetStatus] = useState<LeadStatus>(lead?.status || 'Para Prospectar');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const lastLeadIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!lead) {
+      lastLeadIdRef.current = null;
       setDraft(null);
-    } else if (!draft || lead.id !== draft.id) {
+      return;
+    }
+
+    if (lastLeadIdRef.current !== lead.id) {
+      lastLeadIdRef.current = lead.id;
       setDraft({
         ...lead,
         serviceLogs: Array.isArray(lead.serviceLogs) ? lead.serviceLogs : [],
@@ -61,7 +99,23 @@ export function LeadDetailDrawer({
     }
   }, [lead]);
 
+  useEffect(() => {
+    if (!lead) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lead, onClose]);
+
   if (!lead || !draft) return null;
+
+  const serviceLogs = Array.isArray(draft.serviceLogs) ? draft.serviceLogs : [];
+  const callLogsCount = serviceLogs.filter((l) => l.contactType === 'Ligação').length;
+  const whatsappLogsCount = serviceLogs.filter((l) => l.contactType === 'WhatsApp').length;
+  const personalLogsCount = serviceLogs.filter((l) => l.contactType === 'Pessoal').length;
 
   const whatsappUrl = buildWhatsAppUrl(draft.phone);
 
@@ -83,47 +137,46 @@ export function LeadDetailDrawer({
 
   const handleSaveContactRecord = () => {
     if (!contactText.trim() || !activeContactType) return;
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const timestamp = `${day}/${month}/${year} ${hours}:${minutes}`;
 
-    const newLog: ServiceLog = {
-      id: generateUuid(),
-      timestamp,
-      author: activeUser,
-      contactType: activeContactType,
+    const nextDraft = appendContactRecordToDraft(
+      draft,
+      activeContactType,
+      contactText,
       targetStatus,
-      content: contactText.trim(),
-    };
+      activeUser
+    );
 
-    const nextCallCount = activeContactType === 'Ligação' || activeContactType === 'WhatsApp' ? draft.callCount + 1 : draft.callCount;
-
-    setDraft({
-      ...draft,
-      callCount: nextCallCount,
-      status: targetStatus,
-      serviceLogs: [newLog, ...(draft.serviceLogs || [])],
-    });
-
+    setDraft(nextDraft);
+    onSave(nextDraft, 'Atendimento salvo no perfil e funil atualizado!');
     setActiveContactType(null);
     setContactText('');
   };
 
   const handleDeleteServiceLog = (logId: string) => {
-    setDraft({
+    const nextDraft: Lead = {
       ...draft,
-      serviceLogs: (draft.serviceLogs || []).filter((l) => l.id !== logId),
-    });
+      serviceLogs: serviceLogs.filter((l) => l.id !== logId),
+    };
+    setDraft(nextDraft);
+    onSave(nextDraft, 'Registro de atendimento removido.');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft.companyName.trim()) return;
-    onSave(draft);
+
+    const finalDraft =
+      activeContactType && contactText.trim()
+        ? appendContactRecordToDraft(
+            draft,
+            activeContactType,
+            contactText,
+            targetStatus,
+            activeUser
+          )
+        : draft;
+
+    onSave(finalDraft, 'Alterações salvas!');
     onClose();
   };
 
@@ -263,12 +316,12 @@ export function LeadDetailDrawer({
                   </span>
                 </div>
 
-                {/* 3 Clickable Contact Type Buttons */}
+                {/* 3 Clickable Contact Type Counters */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => handleOpenContactForm('Ligação')}
-                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                       activeContactType === 'Ligação'
                         ? 'bg-orange-500 text-white border-orange-400'
                         : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
@@ -276,12 +329,15 @@ export function LeadDetailDrawer({
                   >
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     <span>Ligação</span>
+                    <span className="font-mono tabular-nums text-[11px] opacity-80">
+                      ({callLogsCount})
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenContactForm('WhatsApp')}
-                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                       activeContactType === 'WhatsApp'
                         ? 'bg-emerald-600 text-white border-emerald-500'
                         : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
@@ -289,12 +345,15 @@ export function LeadDetailDrawer({
                   >
                     <MessageCircle className="h-3.5 w-3.5 shrink-0" />
                     <span>WhatsApp</span>
+                    <span className="font-mono tabular-nums text-[11px] opacity-80">
+                      ({whatsappLogsCount})
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenContactForm('Pessoal')}
-                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
                       activeContactType === 'Pessoal'
                         ? 'bg-amber-600 text-white border-amber-500'
                         : 'bg-[#18181B] border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700'
@@ -302,6 +361,9 @@ export function LeadDetailDrawer({
                   >
                     <Users className="h-3.5 w-3.5 shrink-0" />
                     <span>Pessoal</span>
+                    <span className="font-mono tabular-nums text-[11px] opacity-80">
+                      ({personalLogsCount})
+                    </span>
                   </button>
                 </div>
               </div>
@@ -385,7 +447,7 @@ export function LeadDetailDrawer({
                     </h3>
                   </div>
                   <span className="text-xs font-mono tabular-nums text-emerald-400 font-semibold">
-                    {(draft.serviceLogs || []).length} registros
+                    {serviceLogs.length} {serviceLogs.length === 1 ? 'registro' : 'registros'}
                   </span>
                 </div>
 

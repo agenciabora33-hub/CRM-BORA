@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSeedLeads, DEFAULT_SETTINGS } from '../data/seedLeads';
-import { AgencySettings, Lead, LeadStatus, ToastMessage } from '../types/crm';
-import { appendDatedNote, generateUuid } from '../utils/crmLogic';
+import { AgencySettings, Lead, LeadStatus, ServiceLog, ToastMessage } from '../types/crm';
+import { generateUuid, mergeRemoteLeads, parseServiceLogsValue } from '../utils/crmLogic';
 import {
   fetchWorkspaceFromSheets,
   isValidAppsScriptUrl,
@@ -33,6 +33,7 @@ function loadInitialLeads(): Lead[] {
           instagramUrl: item.instagramUrl ?? '',
           facebookUrl: item.facebookUrl ?? '',
           otherSocialUrl: item.otherSocialUrl ?? '',
+          serviceLogs: parseServiceLogsValue(item.serviceLogs, item.owner || DEFAULT_SETTINGS.activeUser),
         }));
       }
     }
@@ -167,7 +168,9 @@ export function useCrmStore() {
           return;
         }
         if (workspace.leads.length > 0) {
-          setLeads(workspace.leads);
+          setLeads((prev) =>
+            mergeRemoteLeads(prev, workspace.leads, workspace.hasServiceLogsColumn)
+          );
         }
         const nowIso = new Date().toISOString();
         setSettings((prev) => mergeRemoteSettings(prev, workspace.settings, nowIso));
@@ -251,6 +254,7 @@ export function useCrmStore() {
       lastLocalMutationAtRef.current = Date.now();
       const stamped: Lead = {
         ...updated,
+        serviceLogs: Array.isArray(updated.serviceLogs) ? updated.serviceLogs : [],
         updatedAt: new Date().toISOString(),
       };
       setLeads((prev) => prev.map((l) => (l.id === stamped.id ? stamped : l)));
@@ -296,10 +300,12 @@ export function useCrmStore() {
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const timestamp = `${day}/${month}/${year} ${hours}:${minutes}`;
 
-      const newLog = {
+      const newLog: ServiceLog = {
         id: generateUuid(),
         timestamp,
         author: settings.activeUser,
+        contactType: 'Ligação',
+        targetStatus: existing.status,
         content: `Ligação #${nextCount} realizada`,
       };
 
@@ -446,7 +452,9 @@ export function useCrmStore() {
           successMessage = 'Planilha conectada e leads iniciais enviados!';
           pushToast(successMessage, 'success');
         } else {
-          setLeads(remoteLeads);
+          setLeads((prev) =>
+            mergeRemoteLeads(prev, remoteLeads, workspace.hasServiceLogsColumn)
+          );
           if (!remoteSettings) {
             void postToSheets(targetUrl, {
               action: 'syncSettings',

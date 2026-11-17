@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Filter, Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { LEAD_STATUSES, Lead, LeadStatus } from '../types/crm';
 import { filterLeads, formatCurrencyBRL, NICHE_SUGGESTIONS } from '../utils/crmLogic';
 import { KanbanCard } from './KanbanCard';
@@ -37,6 +37,19 @@ export function KanbanBoard({
   const [nicheFilter, setNicheFilter] = useState<string>('all');
   const [followUpFilter, setFollowUpFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('recent');
+
+  const availableOwners = useMemo(
+    () => Array.from(new Set([...teamMembers, ...leads.map((l) => l.owner.trim()).filter(Boolean)])),
+    [leads, teamMembers]
+  );
+
+  const availableNiches = useMemo(
+    () =>
+      Array.from(
+        new Set([...NICHE_SUGGESTIONS, ...leads.map((l) => l.niche.trim()).filter(Boolean)])
+      ),
+    [leads]
+  );
 
   const visibleLeads = useMemo(
     () =>
@@ -137,7 +150,7 @@ export function KanbanBoard({
             className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
           >
             <option value="all">Todos os sócios ({leads.length})</option>
-            {teamMembers.map((member) => {
+            {availableOwners.map((member) => {
               const count = leads.filter((l) => l.owner === member).length;
               return (
                 <option key={member} value={member}>
@@ -154,7 +167,7 @@ export function KanbanBoard({
             className="rounded-md border border-zinc-800 bg-[#09090B] px-3 py-2 text-xs text-zinc-100 focus:border-orange-500 focus:outline-none cursor-pointer"
           >
             <option value="all">Todos os nichos</option>
-            {NICHE_SUGGESTIONS.map((niche) => (
+            {availableNiches.map((niche) => (
               <option key={niche} value={niche}>
                 {niche}
               </option>
@@ -170,7 +183,7 @@ export function KanbanBoard({
             <option value="all">Todos os follow-ups</option>
             <option value="overdue">Vencidos</option>
             <option value="today">Para hoje</option>
-            <option value="upcoming">Próximos</option>
+            <option value="upcoming">Vencidos + próximos 3 dias</option>
           </select>
 
           {hasActiveFilters && (

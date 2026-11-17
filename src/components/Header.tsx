@@ -205,7 +205,7 @@ export function Header({
               className="text-[11px] font-medium text-zinc-100 bg-[#09090B] border border-zinc-800 rounded px-1.5 py-1 max-w-[90px] truncate"
             >
               {settings.teamMembers.map((member) => (
-                <option key={member} value={member}>
+                <option key={member} value={member} className="bg-[#18181B] text-zinc-100">
                   {member}
                 </option>
               ))}

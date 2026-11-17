@@ -24,7 +24,8 @@ const HEADERS = [
   'callCount',
   'estimatedValue',
   'nextFollowUp',
-  'notes'
+  'notes',
+  'serviceLogs'
 ];
 
 function getOrCreateLeadsSheet() {
@@ -148,6 +149,15 @@ function leadToRow(lead, activeHeaders) {
     if (key === 'callCount' || key === 'estimatedValue') {
       return Number(val) || 0;
     }
+    if (key === 'serviceLogs') {
+      var logs = Array.isArray(val) ? val.slice() : [];
+      var serialized = JSON.stringify(logs);
+      while (serialized.length > 48000 && logs.length > 1) {
+        logs.pop();
+        serialized = JSON.stringify(logs);
+      }
+      return serialized;
+    }
     return val !== undefined && val !== null ? String(val) : '';
   });
 }
@@ -160,6 +170,8 @@ function rowToLead(row, activeHeaders) {
     var val = row[i];
     if (key === 'callCount' || key === 'estimatedValue') {
       obj[key] = Number(val) || 0;
+    } else if (key === 'serviceLogs') {
+      obj[key] = val !== undefined && val !== null && String(val).trim() !== '' ? String(val) : '[]';
     } else if (key === 'nextFollowUp' && val instanceof Date) {
       obj[key] = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
     } else if ((key === 'createdAt' || key === 'updatedAt') && val instanceof Date) {

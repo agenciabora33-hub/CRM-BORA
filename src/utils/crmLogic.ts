@@ -141,6 +141,9 @@ export function filterLeads(
     if (followUpFilter === 'upcoming' && urgency !== 'upcoming' && urgency !== 'overdue' && urgency !== 'today') return false;
 
     if (q) {
+      const logsText = (lead.serviceLogs || [])
+        .map((log) => `${log.content} ${log.author} ${log.contactType || ''} ${log.targetStatus || ''}`)
+        .join(' ');
       const haystack = [
         lead.companyName,
         lead.contactName,
@@ -154,6 +157,7 @@ export function filterLeads(
         lead.otherSocialUrl,
         lead.notes,
         lead.owner,
+        logsText,
       ]
         .join(' ')
         .toLowerCase();
@@ -281,6 +285,7 @@ export function generateCsvContent(leads: Lead[]): string {
     'Valor Estimado (R$)',
     'Proximo Follow-up',
     'Observacoes',
+    'Registros de Atendimento',
     'Criado em',
     'Atualizado em',
   ];
@@ -290,6 +295,16 @@ export function generateCsvContent(leads: Lead[]): string {
     const escaped = str.replace(/"/g, '""');
     return `"${escaped}"`;
   };
+
+  const formatLogsForCsv = (logs?: ServiceLog[]) =>
+    (logs || [])
+      .map((log) => {
+        const meta = [log.timestamp, log.contactType, log.author, log.targetStatus]
+          .filter(Boolean)
+          .join(' | ');
+        return `[${meta}] ${log.content}`;
+      })
+      .join(' || ');
 
   const rows = leads.map((l) =>
     [
@@ -310,6 +325,7 @@ export function generateCsvContent(leads: Lead[]): string {
       l.estimatedValue,
       l.nextFollowUp,
       l.notes,
+      formatLogsForCsv(l.serviceLogs),
       l.createdAt,
       l.updatedAt,
     ]
@@ -327,35 +343,62 @@ export function generateUuid(): string {
   return `lead-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+const VALID_CONTACT_TYPES = new Set(['Ligação', 'WhatsApp', 'Pessoal']);
+
+function normalizeServiceLogItem(rawItem: unknown, fallbackOwner: string): ServiceLog | null {
+  if (!rawItem || typeof rawItem !== 'object') return null;
+  const item = rawItem as Record<string, unknown>;
+  const content = String(item.content ?? '').trim();
+  if (!content) return null;
+
+  const rawContactType = typeof item.contactType === 'string' ? item.contactType.trim() : '';
+  const contactType = VALID_CONTACT_TYPES.has(rawContactType)
+    ? (rawContactType as ServiceLog['contactType'])
+    : undefined;
+
+  const rawTargetStatus = typeof item.targetStatus === 'string' ? item.targetStatus.trim() : '';
+  const targetStatus = (LEAD_STATUSES as readonly string[]).includes(rawTargetStatus)
+    ? (rawTargetStatus as LeadStatus)
+    : undefined;
+
+  return {
+    id: String(item.id || generateUuid()),
+    timestamp: String(item.timestamp || new Date().toLocaleString('pt-BR')),
+    author: String(item.author || fallbackOwner),
+    content,
+    ...(contactType ? { contactType } : {}),
+    ...(targetStatus ? { targetStatus } : {}),
+  };
+}
+
+export function parseServiceLogsValue(rawValue: unknown, fallbackOwner: string): ServiceLog[] {
+  if (Array.isArray(rawValue)) {
+    return rawValue
+      .map((item) => normalizeServiceLogItem(item, fallbackOwner))
+      .filter((item): item is ServiceLog => item !== null);
+  }
+  if (typeof rawValue === 'string' && rawValue.trim()) {
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => normalizeServiceLogItem(item, fallbackOwner))
+          .filter((item): item is ServiceLog => item !== null);
+      }
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOwner: string): Lead {
   const statusStr = String(raw.status ?? 'Para Prospectar');
   const validStatus = (LEAD_STATUSES as readonly string[]).includes(statusStr)
     ? (statusStr as LeadStatus)
     : 'Para Prospectar';
 
-  let parsedServiceLogs: ServiceLog[] = [];
-  if (Array.isArray(raw.serviceLogs)) {
-    parsedServiceLogs = raw.serviceLogs.map((item: any) => ({
-      id: String(item.id || generateUuid()),
-      timestamp: String(item.timestamp || new Date().toLocaleString('pt-BR')),
-      author: String(item.author || fallbackOwner),
-      content: String(item.content || ''),
-    }));
-  } else if (typeof raw.serviceLogs === 'string' && raw.serviceLogs.trim()) {
-    try {
-      const parsed = JSON.parse(raw.serviceLogs);
-      if (Array.isArray(parsed)) {
-        parsedServiceLogs = parsed.map((item: any) => ({
-          id: String(item.id || generateUuid()),
-          timestamp: String(item.timestamp || ''),
-          author: String(item.author || ''),
-          content: String(item.content || ''),
-        }));
-      }
-    } catch {
-      // ignore
-    }
-  }
+  const parsedServiceLogs = parseServiceLogsValue(raw.serviceLogs, fallbackOwner);
 
   return {
     id: String(raw.id || generateUuid()),
@@ -379,4 +422,51 @@ export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOw
     notes: String(raw.notes || ''),
     serviceLogs: parsedServiceLogs,
   };
+}
+
+export function mergeRemoteLeads(
+  localLeads: Lead[],
+  remoteLeads: Lead[],
+  hasServiceLogsColumn: boolean
+): Lead[] {
+  const localById = new Map(localLeads.map((lead) => [lead.id, lead]));
+
+  return remoteLeads.map((remote) => {
+    const local = localById.get(remote.id);
+    if (!local) {
+      return {
+        ...remote,
+        serviceLogs: Array.isArray(remote.serviceLogs) ? remote.serviceLogs : [],
+      };
+    }
+
+    const localTs = Date.parse(local.updatedAt || '') || 0;
+    const remoteTs = Date.parse(remote.updatedAt || '') || 0;
+
+    if (localTs > remoteTs) {
+      return {
+        ...local,
+        serviceLogs: Array.isArray(local.serviceLogs) ? local.serviceLogs : [],
+      };
+    }
+
+    if (!hasServiceLogsColumn) {
+      return {
+        ...remote,
+        serviceLogs: Array.isArray(local.serviceLogs) ? local.serviceLogs : [],
+      };
+    }
+
+    return {
+      ...remote,
+      serviceLogs:
+        Array.isArray(remote.serviceLogs) && remote.serviceLogs.length > 0
+          ? remote.serviceLogs
+          : Array.isArray(local.serviceLogs) && localTs === remoteTs
+            ? local.serviceLogs
+            : Array.isArray(remote.serviceLogs)
+              ? remote.serviceLogs
+              : [],
+    };
+  });
 }

@@ -55,10 +55,12 @@ test('normalizeRemoteSettings validates and normalizes shared agency settings sa
   });
 });
 
-test('APPS_SCRIPT_CODE supports JSONP callback, header migration, and Config settings sync', () => {
+test('APPS_SCRIPT_CODE supports JSONP callback, header migration, serviceLogs, and Config settings sync', () => {
   assert.match(APPS_SCRIPT_CODE, /e\.parameter\.callback/);
   assert.match(APPS_SCRIPT_CODE, /ContentService\.MimeType\.JAVASCRIPT/);
   assert.match(APPS_SCRIPT_CODE, /missingHeaders/);
+  assert.match(APPS_SCRIPT_CODE, /'serviceLogs'/);
+  assert.match(APPS_SCRIPT_CODE, /JSON\.stringify\(logs\)/);
   assert.match(APPS_SCRIPT_CODE, /CONFIG_SHEET_NAME = 'Config'/);
   assert.match(APPS_SCRIPT_CODE, /syncSettings/);
   assert.match(APPS_SCRIPT_CODE, /readRemoteSettings/);

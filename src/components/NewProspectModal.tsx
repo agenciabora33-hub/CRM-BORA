@@ -63,6 +63,7 @@ export function NewProspectModal({
     setInstagramUrl('');
     setFacebookUrl('');
     setOtherSocialUrl('');
+    setNiche('');
     setEstimatedValue('');
     setNextFollowUp('');
     setNotes('');
@@ -275,7 +276,7 @@ export function NewProspectModal({
                   onChange={(e) => setOwner(e.target.value)}
                   className={inputClass}
                 >
-                  {teamMembers.map((member) => (
+                  {Array.from(new Set([...teamMembers, owner].filter(Boolean))).map((member) => (
                     <option key={member} value={member} className="bg-[#18181B] text-zinc-100">
                       {member}
                     </option>
