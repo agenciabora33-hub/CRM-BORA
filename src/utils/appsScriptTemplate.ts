@@ -150,7 +150,19 @@ function leadToRow(lead, activeHeaders) {
       return Number(val) || 0;
     }
     if (key === 'serviceLogs') {
-      var logs = Array.isArray(val) ? val.slice() : [];
+      var logs = [];
+      if (Array.isArray(val)) {
+        logs = val.slice();
+      } else if (typeof val === 'string' && val.trim()) {
+        try {
+          var parsedLogs = JSON.parse(val);
+          if (Array.isArray(parsedLogs)) {
+            logs = parsedLogs;
+          }
+        } catch (err) {
+          logs = [];
+        }
+      }
       var serialized = JSON.stringify(logs);
       while (serialized.length > 48000 && logs.length > 1) {
         logs.pop();

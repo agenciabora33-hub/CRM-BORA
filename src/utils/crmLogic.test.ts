@@ -244,4 +244,51 @@ test('mergeRemoteLeads preserves local serviceLogs when remote Sheet lacks servi
   };
   const mergedLocalNewer = mergeRemoteLeads([localLead], [staleRemote], true);
   assert.equal(mergedLocalNewer[0].serviceLogs?.[0].id, 'log-local-1');
+
+  // Case 4: Both partners added distinct logs concurrently (local newer or equal timestamp merges remote log too)
+  const newerLocalLead: Lead = {
+    ...localLead,
+    updatedAt: '2026-11-17T12:12:00.000Z',
+  };
+  const mergedConcurrent = mergeRemoteLeads([newerLocalLead], [remoteWithCol], true, {
+    deletedLogIds: new Set<string>(),
+  });
+  assert.deepEqual(
+    mergedConcurrent[0].serviceLogs?.map((l) => l.id),
+    ['log-local-1', 'log-remote-2']
+  );
+
+  const sameTsLocalLead: Lead = {
+    ...localLead,
+    updatedAt: remoteWithCol.updatedAt,
+  };
+  const mergedSameTs = mergeRemoteLeads([sameTsLocalLead], [remoteWithCol], true, {
+    deletedLogIds: new Set<string>(),
+  });
+  assert.deepEqual(
+    mergedSameTs[0].serviceLogs?.map((l) => l.id),
+    ['log-remote-2', 'log-local-1']
+  );
+
+  // Case 5: Remote has corrupted "[object Object]" cell (unparsedServiceLogIds), preserve valid local logs
+  const corruptedRemote: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-17T12:20:00.000Z',
+    serviceLogs: [],
+  };
+  const mergedCorrupted = mergeRemoteLeads([localLead], [corruptedRemote], true, {
+    unparsedServiceLogIds: new Set([localLead.id]),
+  });
+  assert.equal(mergedCorrupted[0].serviceLogs?.length, 1);
+  assert.equal(mergedCorrupted[0].serviceLogs?.[0].id, 'log-local-1');
+
+  // Case 6: Intentional deletion on this device (deletedLogIds) is not resurrected by remote
+  const mergedDeleted = mergeRemoteLeads(
+    [{ ...localLead, serviceLogs: [] }],
+    [remoteWithCol],
+    true,
+    { deletedLogIds: new Set(['log-remote-2']) }
+  );
+  assert.equal(mergedDeleted[0].serviceLogs?.length, 0);
 });
+

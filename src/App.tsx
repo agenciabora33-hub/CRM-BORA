@@ -31,6 +31,7 @@ export default function App() {
     updateSettings,
     syncFromSheets,
     pushAllToSheets,
+    refreshOnLeadOpen,
     resetDemoData,
   } = useCrmStore();
 
@@ -49,6 +50,7 @@ export default function App() {
 
   const handleSelectLead = (lead: Lead) => {
     setSelectedLeadId(lead.id);
+    refreshOnLeadOpen();
   };
 
   return (

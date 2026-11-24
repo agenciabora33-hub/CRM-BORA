@@ -102,6 +102,10 @@ export function useCrmStore() {
 
   const isSyncingRef = useRef(false);
   const lastLocalMutationAtRef = useRef(0);
+  const lastOpenRefreshAtRef = useRef(0);
+  const leadsRef = useRef<Lead[]>(leads);
+  leadsRef.current = leads;
+  const deletedLogIdsRef = useRef<Set<string>>(new Set());
   const isConnected = isValidAppsScriptUrl(settings.appsScriptUrl);
 
   const pushToast = useCallback((message: string, variant: ToastMessage['variant'] = 'success') => {
@@ -168,8 +172,12 @@ export function useCrmStore() {
           return;
         }
         if (workspace.leads.length > 0) {
+          const unparsedSet = new Set(workspace.unparsedServiceLogIds);
           setLeads((prev) =>
-            mergeRemoteLeads(prev, workspace.leads, workspace.hasServiceLogsColumn)
+            mergeRemoteLeads(prev, workspace.leads, workspace.hasServiceLogsColumn, {
+              deletedLogIds: deletedLogIdsRef.current,
+              unparsedServiceLogIds: unparsedSet,
+            })
           );
         }
         const nowIso = new Date().toISOString();
@@ -252,9 +260,23 @@ export function useCrmStore() {
   const updateLead = useCallback(
     (updated: Lead, toastLabel: string = 'Lead atualizado!') => {
       lastLocalMutationAtRef.current = Date.now();
+      const nextLogs = Array.isArray(updated.serviceLogs) ? updated.serviceLogs : [];
+      const previousLead = leadsRef.current.find((l) => l.id === updated.id);
+      if (previousLead && Array.isArray(previousLead.serviceLogs)) {
+        const nextLogIds = new Set(nextLogs.map((l) => l.id));
+        for (const prevLog of previousLead.serviceLogs) {
+          if (!nextLogIds.has(prevLog.id)) {
+            deletedLogIdsRef.current.add(prevLog.id);
+          }
+        }
+      }
+      for (const nextLog of nextLogs) {
+        deletedLogIdsRef.current.delete(nextLog.id);
+      }
+
       const stamped: Lead = {
         ...updated,
-        serviceLogs: Array.isArray(updated.serviceLogs) ? updated.serviceLogs : [],
+        serviceLogs: nextLogs,
         updatedAt: new Date().toISOString(),
       };
       setLeads((prev) => prev.map((l) => (l.id === stamped.id ? stamped : l)));
@@ -452,8 +474,12 @@ export function useCrmStore() {
           successMessage = 'Planilha conectada e leads iniciais enviados!';
           pushToast(successMessage, 'success');
         } else {
+          const unparsedSet = new Set(workspace.unparsedServiceLogIds);
           setLeads((prev) =>
-            mergeRemoteLeads(prev, remoteLeads, workspace.hasServiceLogsColumn)
+            mergeRemoteLeads(prev, remoteLeads, workspace.hasServiceLogsColumn, {
+              deletedLogIds: deletedLogIdsRef.current,
+              unparsedServiceLogIds: unparsedSet,
+            })
           );
           if (!remoteSettings) {
             void postToSheets(targetUrl, {
@@ -550,6 +576,14 @@ export function useCrmStore() {
     }
   }, [pushToast, settings.appsScriptUrl, syncInBackground]);
 
+  const refreshOnLeadOpen = useCallback(() => {
+    if (!isValidAppsScriptUrl(settings.appsScriptUrl)) return;
+    const now = Date.now();
+    if (now - lastOpenRefreshAtRef.current < 3000) return;
+    lastOpenRefreshAtRef.current = now;
+    void silentRefreshFromSheets(settings.appsScriptUrl, settings.activeUser, false);
+  }, [settings.activeUser, settings.appsScriptUrl, silentRefreshFromSheets]);
+
   return {
     leads,
     settings,
@@ -569,6 +603,7 @@ export function useCrmStore() {
     updateSettings,
     syncFromSheets,
     pushAllToSheets,
+    refreshOnLeadOpen,
     resetDemoData,
   };
 }

@@ -424,11 +424,41 @@ export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOw
   };
 }
 
+export function mergeServiceLogsById(
+  primaryLogs: ServiceLog[] | undefined,
+  secondaryLogs: ServiceLog[] | undefined,
+  deletedLogIds?: ReadonlySet<string>
+): ServiceLog[] {
+  const seen = new Set<string>();
+  const result: ServiceLog[] = [];
+
+  for (const log of primaryLogs || []) {
+    if (deletedLogIds?.has(log.id) || seen.has(log.id)) continue;
+    seen.add(log.id);
+    result.push(log);
+  }
+
+  for (const log of secondaryLogs || []) {
+    if (deletedLogIds?.has(log.id) || seen.has(log.id)) continue;
+    seen.add(log.id);
+    result.push(log);
+  }
+
+  return result;
+}
+
+export interface MergeRemoteLeadsOptions {
+  deletedLogIds?: ReadonlySet<string>;
+  unparsedServiceLogIds?: ReadonlySet<string>;
+}
+
 export function mergeRemoteLeads(
   localLeads: Lead[],
   remoteLeads: Lead[],
-  hasServiceLogsColumn: boolean
+  hasServiceLogsColumn: boolean,
+  options: MergeRemoteLeadsOptions = {}
 ): Lead[] {
+  const { deletedLogIds, unparsedServiceLogIds } = options;
   const localById = new Map(localLeads.map((lead) => [lead.id, lead]));
 
   return remoteLeads.map((remote) => {
@@ -436,37 +466,40 @@ export function mergeRemoteLeads(
     if (!local) {
       return {
         ...remote,
-        serviceLogs: Array.isArray(remote.serviceLogs) ? remote.serviceLogs : [],
+        serviceLogs: (Array.isArray(remote.serviceLogs) ? remote.serviceLogs : []).filter(
+          (l) => !deletedLogIds?.has(l.id)
+        ),
       };
     }
 
     const localTs = Date.parse(local.updatedAt || '') || 0;
     const remoteTs = Date.parse(remote.updatedAt || '') || 0;
+    const localLogs = Array.isArray(local.serviceLogs) ? local.serviceLogs : [];
+    const remoteLogs = Array.isArray(remote.serviceLogs) ? remote.serviceLogs : [];
+    const remoteWasCorrupted = Boolean(unparsedServiceLogIds?.has(remote.id));
 
     if (localTs > remoteTs) {
       return {
         ...local,
-        serviceLogs: Array.isArray(local.serviceLogs) ? local.serviceLogs : [],
+        serviceLogs: mergeServiceLogsById(localLogs, remoteLogs, deletedLogIds),
       };
     }
 
-    if (!hasServiceLogsColumn) {
+    if (!hasServiceLogsColumn || remoteWasCorrupted) {
       return {
         ...remote,
-        serviceLogs: Array.isArray(local.serviceLogs) ? local.serviceLogs : [],
+        serviceLogs: mergeServiceLogsById(localLogs, remoteLogs, deletedLogIds),
       };
     }
 
     return {
       ...remote,
       serviceLogs:
-        Array.isArray(remote.serviceLogs) && remote.serviceLogs.length > 0
-          ? remote.serviceLogs
-          : Array.isArray(local.serviceLogs) && localTs === remoteTs
-            ? local.serviceLogs
-            : Array.isArray(remote.serviceLogs)
-              ? remote.serviceLogs
-              : [],
+        remoteLogs.length > 0
+          ? mergeServiceLogsById(remoteLogs, localTs === remoteTs ? localLogs : [], deletedLogIds)
+          : localTs === remoteTs
+            ? localLogs.filter((l) => !deletedLogIds?.has(l.id))
+            : remoteLogs.filter((l) => !deletedLogIds?.has(l.id)),
     };
   });
 }

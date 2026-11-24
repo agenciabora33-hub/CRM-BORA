@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { APPS_SCRIPT_CODE } from './appsScriptTemplate';
+import { Lead } from '../types/crm';
 import {
   formatDirectFetchError,
   isValidAppsScriptUrl,
   normalizeRemoteSettings,
+  serializePayloadForSheets,
   validateAppsScriptUrl,
 } from './sheetsSync';
 
@@ -60,8 +62,57 @@ test('APPS_SCRIPT_CODE supports JSONP callback, header migration, serviceLogs, a
   assert.match(APPS_SCRIPT_CODE, /ContentService\.MimeType\.JAVASCRIPT/);
   assert.match(APPS_SCRIPT_CODE, /missingHeaders/);
   assert.match(APPS_SCRIPT_CODE, /'serviceLogs'/);
+  assert.match(APPS_SCRIPT_CODE, /typeof val === 'string'/);
   assert.match(APPS_SCRIPT_CODE, /JSON\.stringify\(logs\)/);
   assert.match(APPS_SCRIPT_CODE, /CONFIG_SHEET_NAME = 'Config'/);
   assert.match(APPS_SCRIPT_CODE, /syncSettings/);
   assert.match(APPS_SCRIPT_CODE, /readRemoteSettings/);
 });
+
+test('serializePayloadForSheets encodes serviceLogs as JSON string for create, update, and syncAll', () => {
+  const lead: Lead = {
+    id: 'lead-1',
+    createdAt: '2026-11-24T10:00:00.000Z',
+    updatedAt: '2026-11-24T12:00:00.000Z',
+    owner: 'Elis',
+    companyName: 'FB Climatização',
+    contactName: 'Fernando',
+    phone: '11999990000',
+    websiteOrSocial: '',
+    websiteUrl: '',
+    googleBusinessUrl: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    otherSocialUrl: '',
+    niche: 'Climatização',
+    status: 'Contato Feito',
+    callCount: 1,
+    estimatedValue: 2500,
+    nextFollowUp: '',
+    notes: 'Anotação de teste',
+    serviceLogs: [
+      {
+        id: 'log-1',
+        timestamp: '24/11/2026 12:00',
+        author: 'Elis',
+        contactType: 'WhatsApp',
+        targetStatus: 'Contato Feito',
+        content: 'Primeiro contato via WhatsApp',
+      },
+    ],
+  };
+
+  const updatePayload = serializePayloadForSheets({ action: 'update', lead }) as {
+    lead: { serviceLogs: unknown };
+  };
+  assert.equal(typeof updatePayload.lead.serviceLogs, 'string');
+  assert.doesNotMatch(String(updatePayload.lead.serviceLogs), /\[object Object\]/);
+  const parsed = JSON.parse(String(updatePayload.lead.serviceLogs));
+  assert.equal(parsed[0].author, 'Elis');
+
+  const syncAllPayload = serializePayloadForSheets({ action: 'syncAll', leads: [lead] }) as {
+    leads: Array<{ serviceLogs: unknown }>;
+  };
+  assert.equal(typeof syncAllPayload.leads[0].serviceLogs, 'string');
+});
+

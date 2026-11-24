@@ -78,25 +78,50 @@ export function LeadDetailDrawer({
   const [targetStatus, setTargetStatus] = useState<LeadStatus>(lead?.status || 'Para Prospectar');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const lastLeadIdRef = useRef<string | null>(null);
+  const isNotesDirtyRef = useRef(false);
+  const isStatusDirtyRef = useRef(false);
 
   useEffect(() => {
     if (!lead) {
       lastLeadIdRef.current = null;
+      isNotesDirtyRef.current = false;
+      isStatusDirtyRef.current = false;
       setDraft(null);
       return;
     }
 
+    const remoteLogs = Array.isArray(lead.serviceLogs) ? lead.serviceLogs : [];
+
     if (lastLeadIdRef.current !== lead.id) {
       lastLeadIdRef.current = lead.id;
+      isNotesDirtyRef.current = false;
+      isStatusDirtyRef.current = false;
       setDraft({
         ...lead,
-        serviceLogs: Array.isArray(lead.serviceLogs) ? lead.serviceLogs : [],
+        serviceLogs: remoteLogs,
       });
       setActiveContactType(null);
       setContactText('');
       setTargetStatus(lead.status);
       setConfirmingDelete(false);
+      return;
     }
+
+    // Same lead updated via store (local save or background partner sync):
+    // merge shared attendance logs and clean fields without clobbering active typing
+    setDraft((prev) => {
+      if (!prev || prev.id !== lead.id) {
+        return { ...lead, serviceLogs: remoteLogs };
+      }
+      return {
+        ...prev,
+        serviceLogs: remoteLogs,
+        callCount: lead.callCount,
+        updatedAt: lead.updatedAt,
+        notes: isNotesDirtyRef.current ? prev.notes : lead.notes,
+        status: isStatusDirtyRef.current ? prev.status : lead.status,
+      };
+    });
   }, [lead]);
 
   useEffect(() => {
@@ -135,6 +160,13 @@ export function LeadDetailDrawer({
     }
   };
 
+  const notesDirty = draft.notes !== lead.notes;
+
+  const handleSaveNotes = () => {
+    isNotesDirtyRef.current = false;
+    onSave({ ...draft }, 'Anotações salvas e compartilhadas!');
+  };
+
   const handleSaveContactRecord = () => {
     if (!contactText.trim() || !activeContactType) return;
 
@@ -146,8 +178,10 @@ export function LeadDetailDrawer({
       activeUser
     );
 
+    isNotesDirtyRef.current = false;
+    isStatusDirtyRef.current = false;
     setDraft(nextDraft);
-    onSave(nextDraft, 'Atendimento salvo no perfil e funil atualizado!');
+    onSave(nextDraft, 'Atendimento salvo e compartilhado no perfil!');
     setActiveContactType(null);
     setContactText('');
   };
@@ -157,6 +191,7 @@ export function LeadDetailDrawer({
       ...draft,
       serviceLogs: serviceLogs.filter((l) => l.id !== logId),
     };
+    isNotesDirtyRef.current = false;
     setDraft(nextDraft);
     onSave(nextDraft, 'Registro de atendimento removido.');
   };
@@ -176,6 +211,8 @@ export function LeadDetailDrawer({
           )
         : draft;
 
+    isNotesDirtyRef.current = false;
+    isStatusDirtyRef.current = false;
     onSave(finalDraft, 'Alterações salvas!');
     onClose();
   };
@@ -517,21 +554,37 @@ export function LeadDetailDrawer({
               {/* 1. Anotações do Lead */}
               <div className="rounded-xl border border-zinc-800 bg-[#09090B] p-3 flex flex-col gap-1.5 shrink-0">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5 text-[#F97316]" />
-                    <label htmlFor="ed-notes" className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <FileText className="h-3.5 w-3.5 text-[#F97316] shrink-0" />
+                    <label htmlFor="ed-notes" className="text-xs font-bold text-zinc-200 uppercase tracking-wider whitespace-nowrap">
                       Anotações do Lead
                     </label>
+                    <span className="hidden sm:inline text-[11px] text-zinc-400 truncate">
+                      · Compartilhado entre sócios
+                    </span>
                   </div>
-                  <span className="text-[11px] text-zinc-400">
-                    Briefings, acordos e notas livres
-                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSaveNotes}
+                    disabled={!notesDirty}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shrink-0 ${
+                      notesDirty
+                        ? 'bg-[#F97316] hover:bg-[#EA580C] text-white cursor-pointer'
+                        : 'bg-[#18181B] border border-zinc-800 text-zinc-400 cursor-default'
+                    }`}
+                  >
+                    <Save className="h-3 w-3" />
+                    <span>{notesDirty ? 'Salvar anotações' : 'Salvo'}</span>
+                  </button>
                 </div>
                 <textarea
                   id="ed-notes"
                   rows={2}
                   value={draft.notes}
-                  onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                  onChange={(e) => {
+                    isNotesDirtyRef.current = true;
+                    setDraft({ ...draft, notes: e.target.value });
+                  }}
                   placeholder="Digite as anotações do lead..."
                   className="w-full rounded-md border border-zinc-800 bg-[#111114] px-2.5 py-1.5 text-xs text-zinc-100 leading-relaxed focus:border-orange-500 focus:outline-none resize-y min-h-[54px]"
                 />
@@ -565,7 +618,10 @@ export function LeadDetailDrawer({
                     <select
                       id="ed-status"
                       value={draft.status}
-                      onChange={(e) => setDraft({ ...draft, status: e.target.value as LeadStatus })}
+                      onChange={(e) => {
+                        isStatusDirtyRef.current = true;
+                        setDraft({ ...draft, status: e.target.value as LeadStatus });
+                      }}
                       className={inputClass}
                     >
                       {LEAD_STATUSES.map((st) => (

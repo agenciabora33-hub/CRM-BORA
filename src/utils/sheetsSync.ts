@@ -12,6 +12,7 @@ export interface SheetsFetchResult {
   leads: Lead[];
   settings: RemoteAgencySettings | null;
   hasServiceLogsColumn: boolean;
+  unparsedServiceLogIds: string[];
 }
 
 export type SyncActionPayload =
@@ -128,16 +129,18 @@ export function formatDirectFetchError(err: unknown): Error {
 async function callViaProxy<T>(
   url: string,
   method: 'GET' | 'POST',
-  payload?: SyncActionPayload
+  payload?: unknown
 ): Promise<{ handled: boolean; data?: T }> {
   try {
+    const bodyStr = JSON.stringify({ url: url.trim(), method, payload });
     const proxyRes = await fetch('/api/sheets-proxy', {
       method: 'POST',
       credentials: 'include',
+      keepalive: bodyStr.length < 60000,
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ url: url.trim(), method, payload }),
+      body: bodyStr,
     });
 
     // If running on a static-only host or redirected by hosting auth proxy, fall back cleanly
@@ -229,15 +232,60 @@ function fetchWorkspaceViaJsonp(url: string): Promise<SheetsGetResponse> {
   });
 }
 
+export function serializeLeadForSheets(lead: Lead): Record<string, unknown> {
+  const logs = Array.isArray(lead.serviceLogs) ? [...lead.serviceLogs] : [];
+  let serializedLogs = JSON.stringify(logs);
+  while (serializedLogs.length > 48000 && logs.length > 1) {
+    logs.pop();
+    serializedLogs = JSON.stringify(logs);
+  }
+  return {
+    ...lead,
+    serviceLogs: serializedLogs,
+  };
+}
+
+export function serializePayloadForSheets(payload: SyncActionPayload): Record<string, unknown> {
+  if (payload.action === 'create' || payload.action === 'update') {
+    return {
+      ...payload,
+      lead: serializeLeadForSheets(payload.lead),
+    };
+  }
+  if (payload.action === 'syncAll') {
+    return {
+      ...payload,
+      leads: payload.leads.map(serializeLeadForSheets),
+    };
+  }
+  return payload as unknown as Record<string, unknown>;
+}
+
 function parseWorkspaceResponse(data: SheetsGetResponse, fallbackOwner: string): SheetsFetchResult {
   const rawLeads = Array.isArray(data.leads) ? data.leads : [];
   const hasServiceLogsColumn = rawLeads.some((item) =>
     Object.prototype.hasOwnProperty.call(item, 'serviceLogs')
   );
+  const unparsedServiceLogIds: string[] = [];
+  const leads = rawLeads.map((item) => {
+    const normalized = normalizeLeadFromRemote(item, fallbackOwner);
+    const rawLogs = item.serviceLogs;
+    if (
+      typeof rawLogs === 'string' &&
+      rawLogs.trim() !== '' &&
+      rawLogs.trim() !== '[]' &&
+      (normalized.serviceLogs?.length ?? 0) === 0
+    ) {
+      unparsedServiceLogIds.push(normalized.id);
+    }
+    return normalized;
+  });
+
   return {
-    leads: rawLeads.map((item) => normalizeLeadFromRemote(item, fallbackOwner)),
+    leads,
     settings: normalizeRemoteSettings(data.settings),
     hasServiceLogsColumn,
+    unparsedServiceLogIds,
   };
 }
 
@@ -303,23 +351,28 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
     throw new Error(check.reason || 'URL do Google Apps Script inválida.');
   }
 
+  const wirePayload = serializePayloadForSheets(payload);
+
   const proxied = await callViaProxy<{ ok?: boolean; error?: string }>(
     check.normalizedUrl,
     'POST',
-    payload
+    wirePayload
   );
   if (proxied.handled) {
     return;
   }
 
+  const serializedBody = JSON.stringify(wirePayload);
+
   try {
     const response = await fetch(check.normalizedUrl, {
       method: 'POST',
+      keepalive: serializedBody.length < 60000,
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
       redirect: 'follow',
-      body: JSON.stringify(payload),
+      body: serializedBody,
     });
 
     if (!response.ok) {
@@ -341,10 +394,11 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
         await fetch(check.normalizedUrl, {
           method: 'POST',
           mode: 'no-cors',
+          keepalive: serializedBody.length < 60000,
           headers: {
             'Content-Type': 'text/plain;charset=utf-8',
           },
-          body: JSON.stringify(payload),
+          body: serializedBody,
         });
         return;
       } catch (noCorsErr) {
