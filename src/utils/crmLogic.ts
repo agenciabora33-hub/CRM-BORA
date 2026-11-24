@@ -503,3 +503,40 @@ export function mergeRemoteLeads(
     };
   });
 }
+
+export function mergeLeadBeforeSheetPush(
+  localLead: Lead,
+  remoteLead: Lead | undefined,
+  deletedLogIds?: ReadonlySet<string>
+): { mergedLead: Lead; gainedRemoteLogs: boolean } {
+  const localLogs = Array.isArray(localLead.serviceLogs) ? localLead.serviceLogs : [];
+  if (!remoteLead) {
+    return {
+      mergedLead: {
+        ...localLead,
+        serviceLogs: localLogs.filter((l) => !deletedLogIds?.has(l.id)),
+      },
+      gainedRemoteLogs: false,
+    };
+  }
+
+  const remoteLogs = Array.isArray(remoteLead.serviceLogs) ? remoteLead.serviceLogs : [];
+  const mergedLogs = mergeServiceLogsById(localLogs, remoteLogs, deletedLogIds);
+  const localIds = new Set(localLogs.map((l) => l.id));
+  const addedFromRemote = mergedLogs.filter((l) => !localIds.has(l.id)).length;
+
+  const callCount =
+    addedFromRemote > 0
+      ? Math.max(Number(localLead.callCount) || 0, Number(remoteLead.callCount) || 0, mergedLogs.length)
+      : Number(localLead.callCount) || 0;
+
+  return {
+    mergedLead: {
+      ...localLead,
+      serviceLogs: mergedLogs,
+      callCount,
+    },
+    gainedRemoteLogs: addedFromRemote > 0,
+  };
+}
+

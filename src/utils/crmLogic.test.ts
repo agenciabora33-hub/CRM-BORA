@@ -9,6 +9,7 @@ import {
   formatDateBR,
   generateCsvContent,
   getFollowUpUrgency,
+  mergeLeadBeforeSheetPush,
   mergeRemoteLeads,
   normalizeExternalUrl,
   normalizeLeadFromRemote,
@@ -291,4 +292,57 @@ test('mergeRemoteLeads preserves local serviceLogs when remote Sheet lacks servi
   );
   assert.equal(mergedDeleted[0].serviceLogs?.length, 0);
 });
+
+test('mergeLeadBeforeSheetPush merges remote partner serviceLogs without overwriting them on save', () => {
+  const localEdited: Lead = {
+    ...sampleLeads[0],
+    callCount: 1,
+    serviceLogs: [
+      {
+        id: 'log-claudio',
+        timestamp: '24/11/2026 15:00',
+        author: 'Cláudio',
+        contactType: 'Ligação',
+        targetStatus: 'Reunião / Proposta',
+        content: 'Ligação feita por Cláudio.',
+      },
+    ],
+  };
+
+  const remoteFromElis: Lead = {
+    ...sampleLeads[0],
+    callCount: 1,
+    serviceLogs: [
+      {
+        id: 'log-elis',
+        timestamp: '24/11/2026 14:58',
+        author: 'Elis',
+        contactType: 'WhatsApp',
+        targetStatus: 'Contato Feito',
+        content: 'Mensagem enviada pela Elis.',
+      },
+    ],
+  };
+
+  const result = mergeLeadBeforeSheetPush(localEdited, remoteFromElis, new Set());
+  assert.equal(result.gainedRemoteLogs, true);
+  assert.equal(result.mergedLead.callCount, 2);
+  assert.deepEqual(
+    result.mergedLead.serviceLogs?.map((l) => l.id),
+    ['log-claudio', 'log-elis']
+  );
+
+  // Respect deletedLogIds so an intentionally removed log isn't re-added on push
+  const withDeleted = mergeLeadBeforeSheetPush(
+    localEdited,
+    remoteFromElis,
+    new Set(['log-elis'])
+  );
+  assert.equal(withDeleted.gainedRemoteLogs, false);
+  assert.deepEqual(
+    withDeleted.mergedLead.serviceLogs?.map((l) => l.id),
+    ['log-claudio']
+  );
+});
+
 

@@ -367,7 +367,6 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
   try {
     const response = await fetch(check.normalizedUrl, {
       method: 'POST',
-      keepalive: serializedBody.length < 60000,
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
@@ -394,7 +393,6 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
         await fetch(check.normalizedUrl, {
           method: 'POST',
           mode: 'no-cors',
-          keepalive: serializedBody.length < 60000,
           headers: {
             'Content-Type': 'text/plain;charset=utf-8',
           },

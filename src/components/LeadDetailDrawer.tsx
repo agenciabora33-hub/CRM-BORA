@@ -6,6 +6,7 @@ import {
   FileText,
   MessageCircle,
   Phone,
+  RefreshCw,
   Save,
   Trash2,
   User,
@@ -24,6 +25,11 @@ interface LeadDetailDrawerProps {
   lead: Lead | null;
   teamMembers: [string, string];
   activeUser: string;
+  isConnected?: boolean;
+  isSyncing?: boolean;
+  isSavingToSheets?: boolean;
+  isCorruptedRemoteLogs?: boolean;
+  onRefreshFromSheets?: () => void;
   onClose: () => void;
   onSave: (updated: Lead, toastLabel?: string) => void;
   onDelete: (leadId: string) => void;
@@ -68,6 +74,11 @@ export function LeadDetailDrawer({
   lead,
   teamMembers,
   activeUser,
+  isConnected = false,
+  isSyncing = false,
+  isSavingToSheets = false,
+  isCorruptedRemoteLogs = false,
+  onRefreshFromSheets,
   onClose,
   onSave,
   onDelete,
@@ -477,22 +488,53 @@ export function LeadDetailDrawer({
               {/* Service Logs History */}
               <div className="flex-1 rounded-xl border border-zinc-800 bg-[#09090B] p-3.5 flex flex-col gap-2.5 min-h-[200px] overflow-hidden">
                 <div className="flex items-center justify-between gap-2 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-emerald-400" />
-                    <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <h3 className="text-xs font-bold text-zinc-200 uppercase tracking-wider truncate">
                       Histórico de Atendimentos
                     </h3>
                   </div>
-                  <span className="text-xs font-mono tabular-nums text-emerald-400 font-semibold">
-                    {serviceLogs.length} {serviceLogs.length === 1 ? 'registro' : 'registros'}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isSavingToSheets && (
+                      <span className="text-[11px] text-orange-400 font-medium whitespace-nowrap">
+                        Salvando...
+                      </span>
+                    )}
+                    <span className="text-xs font-mono tabular-nums text-emerald-400 font-semibold whitespace-nowrap">
+                      {serviceLogs.length} {serviceLogs.length === 1 ? 'registro' : 'registros'}
+                    </span>
+                    {isConnected && onRefreshFromSheets && (
+                      <button
+                        type="button"
+                        onClick={onRefreshFromSheets}
+                        disabled={isSyncing || isSavingToSheets}
+                        title="Atualizar histórico da planilha"
+                        aria-label="Atualizar histórico da planilha"
+                        className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-[#18181B] hover:bg-zinc-800 disabled:opacity-50 px-2 py-1 text-[11px] font-medium text-zinc-300 hover:text-zinc-100 cursor-pointer transition-colors"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin text-orange-400' : ''}`} />
+                        <span>Atualizar</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
                   {(!draft.serviceLogs || draft.serviceLogs.length === 0) ? (
-                    <div className="py-10 px-3 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
-                      Nenhum registro de atendimento realizado. Clique em Ligação, WhatsApp ou Pessoal acima para registrar.
-                    </div>
+                    isCorruptedRemoteLogs ? (
+                      <div className="py-6 px-3.5 text-center text-xs text-amber-200/90 border border-amber-500/35 bg-amber-500/10 rounded-lg space-y-1.5">
+                        <p className="font-semibold text-amber-300">
+                          Registros antigos incompatíveis na planilha
+                        </p>
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">
+                          Este lead possui registros gravados antes da correção no formato <code className="font-mono text-amber-300">[object Object]</code>. Se o outro sócio ainda vê os registros no aparelho dele, basta abrir o app atualizado lá ou clicar em <strong className="text-zinc-100">Enviar tudo agora</strong> nas Configurações para restaurá-los na planilha.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="py-10 px-3 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
+                        Nenhum registro de atendimento realizado. Clique em Ligação, WhatsApp ou Pessoal acima para registrar.
+                      </div>
+                    )
                   ) : (
                     draft.serviceLogs.map((log) => (
                       <div

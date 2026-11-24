@@ -18,6 +18,8 @@ export default function App() {
     partnerConfirmed,
     isConnected,
     isSyncing,
+    isSavingToSheets,
+    corruptedRemoteLogIds,
     toasts,
     dismissToast,
     pushToast,
@@ -32,6 +34,7 @@ export default function App() {
     syncFromSheets,
     pushAllToSheets,
     refreshOnLeadOpen,
+    refreshLeadNow,
     resetDemoData,
   } = useCrmStore();
 
@@ -114,6 +117,13 @@ export default function App() {
         lead={selectedLead}
         teamMembers={settings.teamMembers}
         activeUser={settings.activeUser}
+        isConnected={isConnected}
+        isSyncing={isSyncing}
+        isSavingToSheets={isSavingToSheets}
+        isCorruptedRemoteLogs={selectedLead ? corruptedRemoteLogIds.has(selectedLead.id) : false}
+        onRefreshFromSheets={() => {
+          void refreshLeadNow();
+        }}
         onClose={() => setSelectedLeadId(null)}
         onSave={(updated, toastLabel) => updateLead(updated, toastLabel ?? 'Alterações salvas!')}
         onDelete={deleteLead}
