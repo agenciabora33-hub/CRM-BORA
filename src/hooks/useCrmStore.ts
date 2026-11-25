@@ -6,6 +6,7 @@ import {
   mergeLeadBeforeSheetPush,
   mergeLocalMutationWithLatest,
   mergeRemoteLeads,
+  normalizeLeadStatus,
   parseServiceLogsValue,
 } from '../utils/crmLogic';
 import {
@@ -34,6 +35,7 @@ function loadInitialLeads(): Lead[] {
       if (Array.isArray(parsed)) {
         return parsed.map((item) => ({
           ...item,
+          status: normalizeLeadStatus(item.status),
           websiteUrl: item.websiteUrl ?? '',
           googleBusinessUrl: item.googleBusinessUrl ?? '',
           instagramUrl: item.instagramUrl ?? '',

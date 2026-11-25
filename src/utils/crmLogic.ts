@@ -226,8 +226,8 @@ export interface DashboardMetrics {
 
 const SHORT_STATUS_LABELS: Record<LeadStatus, string> = {
   'Para Prospectar': 'Prospectar',
-  'Contato Feito': 'Contato',
   'Interesse / Conversa': 'Conversa',
+  'Agendados': 'Agendados',
   'Reunião / Proposta': 'Proposta',
   'Fechado (Ganho)': 'Ganho',
   'Perdido': 'Perdido',
@@ -377,6 +377,16 @@ export function generateUuid(): string {
 
 const VALID_CONTACT_TYPES = new Set(['Ligação', 'WhatsApp', 'Pessoal']);
 
+export function normalizeLeadStatus(rawStatus: unknown): LeadStatus {
+  const statusStr = String(rawStatus ?? '').trim();
+  if (statusStr === 'Contato Feito') {
+    return 'Agendados';
+  }
+  return (LEAD_STATUSES as readonly string[]).includes(statusStr)
+    ? (statusStr as LeadStatus)
+    : 'Para Prospectar';
+}
+
 function normalizeServiceLogItem(rawItem: unknown, fallbackOwner: string): ServiceLog | null {
   if (!rawItem || typeof rawItem !== 'object') return null;
   const item = rawItem as Record<string, unknown>;
@@ -389,8 +399,9 @@ function normalizeServiceLogItem(rawItem: unknown, fallbackOwner: string): Servi
     : undefined;
 
   const rawTargetStatus = typeof item.targetStatus === 'string' ? item.targetStatus.trim() : '';
-  const targetStatus = (LEAD_STATUSES as readonly string[]).includes(rawTargetStatus)
-    ? (rawTargetStatus as LeadStatus)
+  const mappedTargetStatus = rawTargetStatus === 'Contato Feito' ? 'Agendados' : rawTargetStatus;
+  const targetStatus = (LEAD_STATUSES as readonly string[]).includes(mappedTargetStatus)
+    ? (mappedTargetStatus as LeadStatus)
     : undefined;
 
   return {
@@ -425,10 +436,7 @@ export function parseServiceLogsValue(rawValue: unknown, fallbackOwner: string):
 }
 
 export function normalizeLeadFromRemote(raw: Record<string, unknown>, fallbackOwner: string): Lead {
-  const statusStr = String(raw.status ?? 'Para Prospectar');
-  const validStatus = (LEAD_STATUSES as readonly string[]).includes(statusStr)
-    ? (statusStr as LeadStatus)
-    : 'Para Prospectar';
+  const validStatus = normalizeLeadStatus(raw.status);
 
   const parsedServiceLogs = parseServiceLogsValue(raw.serviceLogs, fallbackOwner);
 

@@ -15,8 +15,8 @@ interface KanbanBoardProps {
 
 const STAGE_DOT_COLORS: Record<LeadStatus, string> = {
   'Para Prospectar': 'bg-zinc-400',
-  'Contato Feito': 'bg-sky-400',
   'Interesse / Conversa': 'bg-orange-400',
+  'Agendados': 'bg-sky-400',
   'Reunião / Proposta': 'bg-amber-400',
   'Fechado (Ganho)': 'bg-emerald-400',
   'Perdido': 'bg-zinc-600',

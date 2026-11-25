@@ -16,7 +16,7 @@ import {
   normalizeExternalUrl,
   normalizeLeadFromRemote,
 } from './crmLogic';
-import { Lead } from '../types/crm';
+import { LEAD_STATUSES, Lead } from '../types/crm';
 
 const sampleLeads: Lead[] = [
   {
@@ -55,7 +55,7 @@ const sampleLeads: Lead[] = [
     facebookUrl: '',
     otherSocialUrl: '',
     niche: 'Restaurante',
-    status: 'Contato Feito',
+    status: 'Agendados',
     callCount: 2,
     estimatedValue: 3000,
     nextFollowUp: '2026-11-11',
@@ -87,7 +87,7 @@ const sampleLeads: Lead[] = [
 const refDate = new Date('2026-11-13T12:00:00');
 
 test('follow-up urgency classifies overdue, today, upcoming, and closed leads', () => {
-  assert.equal(getFollowUpUrgency('2026-11-11', 'Contato Feito', refDate), 'overdue');
+  assert.equal(getFollowUpUrgency('2026-11-11', 'Agendados', refDate), 'overdue');
   assert.equal(getFollowUpUrgency('2026-11-13', 'Reunião / Proposta', refDate), 'today');
   assert.equal(getFollowUpUrgency('2026-11-15', 'Para Prospectar', refDate), 'upcoming');
   assert.equal(getFollowUpUrgency('2026-11-25', 'Para Prospectar', refDate), 'future');
@@ -202,6 +202,29 @@ test('generateCsvContent and normalizeLeadFromRemote preserve lead fields', () =
   assert.equal(normalized.owner, 'Ana');
   assert.equal(normalized.websiteUrl, '');
   assert.equal(normalized.googleBusinessUrl, '');
+
+  const migratedLegacyStatus = normalizeLeadFromRemote(
+    {
+      companyName: 'Legacy Lead',
+      status: 'Contato Feito',
+      serviceLogs: [
+        {
+          id: 'log-legacy',
+          timestamp: '20/11/2026 10:00',
+          author: 'Cláudio',
+          contactType: 'Ligação',
+          targetStatus: 'Contato Feito',
+          content: 'Contato antigo.',
+        },
+      ],
+    },
+    'Cláudio'
+  );
+  assert.equal(migratedLegacyStatus.status, 'Agendados');
+  assert.equal(migratedLegacyStatus.serviceLogs?.[0].targetStatus, 'Agendados');
+  assert.ok(
+    LEAD_STATUSES.indexOf('Interesse / Conversa') < LEAD_STATUSES.indexOf('Agendados')
+  );
 });
 
 test('normalizeExternalUrl handles full URLs, bare domains, and @handles', () => {
@@ -372,7 +395,7 @@ test('mergeLeadBeforeSheetPush merges remote partner serviceLogs without overwri
         timestamp: '24/11/2026 14:58',
         author: 'Elis',
         contactType: 'WhatsApp',
-        targetStatus: 'Contato Feito',
+        targetStatus: 'Agendados',
         content: 'Mensagem enviada pela Elis.',
       },
     ],
@@ -405,7 +428,7 @@ test('mergeLocalMutationWithLatest never loses newly saved logs against stale st
     timestamp: '24/11/2026 10:00',
     author: 'Cláudio',
     contactType: 'Ligação' as const,
-    targetStatus: 'Contato Feito' as const,
+    targetStatus: 'Agendados' as const,
     content: 'Primeiro contato.',
   };
   const newLog = {
@@ -437,7 +460,7 @@ test('mergeLocalMutationWithLatest never loses newly saved logs against stale st
     ...sampleLeads[0],
     updatedAt: '2026-11-24T10:00:00.000Z',
     callCount: 1,
-    status: 'Contato Feito',
+    status: 'Agendados',
     serviceLogs: [oldLog],
   };
   const mergedStale = mergeLocalMutationWithLatest(queuedLead, staleStoreLead, new Set());

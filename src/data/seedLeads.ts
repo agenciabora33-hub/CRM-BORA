@@ -80,7 +80,7 @@ export function createSeedLeads(): Lead[] {
       facebookUrl: '',
       otherSocialUrl: 'https://linkedin.com/company/almeida-costa-advocacia',
       niche: 'Advocacia',
-      status: 'Contato Feito',
+      status: 'Agendados',
       callCount: 1,
       estimatedValue: 4200,
       nextFollowUp: offsetIsoDate(2),

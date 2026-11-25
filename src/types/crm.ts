@@ -1,7 +1,7 @@
 export const LEAD_STATUSES = [
   'Para Prospectar',
-  'Contato Feito',
   'Interesse / Conversa',
+  'Agendados',
   'Reunião / Proposta',
   'Fechado (Ganho)',
   'Perdido',
