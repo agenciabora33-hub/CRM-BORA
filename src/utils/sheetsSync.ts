@@ -126,11 +126,20 @@ export function formatDirectFetchError(err: unknown): Error {
   return new Error('Erro de rede ao conectar com o Google Apps Script.');
 }
 
+let proxyAvailable: boolean | null = null;
+
+export function resetProxyAvailabilityForTest() {
+  proxyAvailable = null;
+}
+
 async function callViaProxy<T>(
   url: string,
   method: 'GET' | 'POST',
   payload?: unknown
 ): Promise<{ handled: boolean; data?: T }> {
+  if (proxyAvailable === false) {
+    return { handled: false };
+  }
   try {
     const bodyStr = JSON.stringify({ url: url.trim(), method, payload });
     const proxyRes = await fetch('/api/sheets-proxy', {
@@ -144,16 +153,24 @@ async function callViaProxy<T>(
     });
 
     // If running on a static-only host or redirected by hosting auth proxy, fall back cleanly
-    if (proxyRes.status === 404 || proxyRes.status === 405 || proxyRes.type === 'opaqueredirect') {
+    if (
+      proxyRes.status === 404 ||
+      proxyRes.status === 405 ||
+      proxyRes.type === 'opaqueredirect' ||
+      proxyRes.url.includes('__cookie_check')
+    ) {
+      proxyAvailable = false;
       return { handled: false };
     }
 
     const contentType = proxyRes.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
+      proxyAvailable = false;
       return { handled: false };
     }
 
     const json = (await proxyRes.json()) as T & { ok?: boolean; error?: string };
+    proxyAvailable = true;
     if (!proxyRes.ok || json.ok === false) {
       throw new Error(json.error || `Erro HTTP ${proxyRes.status} ao comunicar com a planilha.`);
     }
@@ -367,6 +384,7 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
   try {
     const response = await fetch(check.normalizedUrl, {
       method: 'POST',
+      keepalive: serializedBody.length < 60000,
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
@@ -378,7 +396,15 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
       throw new Error(`Erro HTTP ${response.status} ao enviar dados para a planilha.`);
     }
 
-    const data = (await response.json()) as { ok?: boolean; error?: string };
+    const text = await response.text();
+    let data: { ok?: boolean; error?: string };
+    try {
+      data = JSON.parse(text) as { ok?: boolean; error?: string };
+    } catch {
+      throw new Error(
+        'O Google Apps Script retornou uma página HTML em vez de JSON. Verifique se a implantação está publicada com acesso para "Qualquer pessoa".'
+      );
+    }
     if (data.ok === false) {
       throw new Error(data.error || 'Falha ao atualizar a planilha.');
     }
@@ -393,6 +419,7 @@ export async function postToSheets(url: string, payload: SyncActionPayload): Pro
         await fetch(check.normalizedUrl, {
           method: 'POST',
           mode: 'no-cors',
+          keepalive: serializedBody.length < 60000,
           headers: {
             'Content-Type': 'text/plain;charset=utf-8',
           },

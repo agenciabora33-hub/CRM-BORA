@@ -16,6 +16,7 @@ interface HeaderProps {
   settings: AgencySettings;
   isConnected: boolean;
   isSyncing: boolean;
+  isSavingToSheets?: boolean;
   onChangeActiveUser: (user: string) => void;
   onManualSync: () => void;
   onOpenNewProspect: () => void;
@@ -34,6 +35,7 @@ export function Header({
   settings,
   isConnected,
   isSyncing,
+  isSavingToSheets = false,
   onChangeActiveUser,
   onManualSync,
   onOpenNewProspect,
@@ -47,7 +49,7 @@ export function Header({
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#111114]/95 backdrop-blur-md border-b border-zinc-800">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
+      <div className="max-w-[1760px] mx-auto px-3 sm:px-5">
         <div className="h-14 sm:h-16 flex items-center justify-between gap-3">
           {/* Left: Bora Brand Logo Lockup + Name */}
           <div className="flex items-center gap-3 min-w-0">
@@ -124,16 +126,36 @@ export function Header({
             {/* Sync status + refresh */}
             <div className="hidden sm:flex items-center gap-1.5">
               <span
-                title={isConnected ? 'Sincronização automática em tempo real ativada' : 'Modo Local'}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-zinc-800 bg-[#09090B] text-xs font-medium text-zinc-300 whitespace-nowrap"
+                title={
+                  isSavingToSheets
+                    ? 'Enviando alterações para o Google Sheets...'
+                    : isConnected
+                      ? 'Sincronização automática em tempo real ativada'
+                      : 'Modo Local'
+                }
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium whitespace-nowrap ${
+                  isSavingToSheets
+                    ? 'border-orange-500/50 bg-orange-950/30 text-orange-200'
+                    : 'border-zinc-800 bg-[#09090B] text-zinc-300'
+                }`}
               >
                 <span
                   aria-hidden="true"
                   className={`h-1.5 w-1.5 rounded-full ${
-                    isConnected ? 'bg-emerald-400' : 'bg-zinc-500'
+                    isSavingToSheets
+                      ? 'bg-[#F97316] animate-pulse'
+                      : isConnected
+                        ? 'bg-emerald-400'
+                        : 'bg-zinc-500'
                   }`}
                 />
-                <span>{isConnected ? 'Planilha Conectada' : 'Modo Local'}</span>
+                <span>
+                  {isSavingToSheets
+                    ? 'Salvando na planilha...'
+                    : isConnected
+                      ? 'Planilha Conectada'
+                      : 'Modo Local'}
+                </span>
               </span>
               {isConnected && (
                 <button

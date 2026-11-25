@@ -116,6 +116,7 @@ export function useCrmStore() {
   const activeUserRef = useRef(settings.activeUser);
   activeUserRef.current = settings.activeUser;
   const deletedLogIdsRef = useRef<Set<string>>(new Set());
+  const lastRemoteLeadsByIdRef = useRef<Map<string, Lead>>(new Map());
   const syncWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isConnected = isValidAppsScriptUrl(settings.appsScriptUrl);
 
@@ -126,17 +127,31 @@ export function useCrmStore() {
     return next;
   }, []);
 
-  const pushToast = useCallback((message: string, variant: ToastMessage['variant'] = 'success') => {
-    const id = generateUuid();
-    setToasts((prev) => [...prev.slice(-3), { id, message, variant }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3600);
-  }, []);
+  const pushToast = useCallback(
+    (message: string, variant: ToastMessage['variant'] = 'success', durationMs?: number) => {
+      const id = generateUuid();
+      const timeout = durationMs ?? (variant === 'error' ? 7500 : 3600);
+      setToasts((prev) => [...prev.slice(-3), { id, message, variant }]);
+      window.setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, timeout);
+    },
+    []
+  );
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  useEffect(() => {
+    if (!isSavingToSheets) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSavingToSheets]);
 
   useEffect(() => {
     try {
@@ -171,48 +186,82 @@ export function useCrmStore() {
           let payloadToSend = payload;
           if (payload.action === 'update') {
             const currentInStore = leadsRef.current.find((l) => l.id === payload.lead.id);
-            let candidateLead = mergeLocalMutationWithLatest(
+            const candidateLocal = mergeLocalMutationWithLatest(
               payload.lead,
               currentInStore,
               deletedLogIdsRef.current
             );
-            try {
-              const workspace = await fetchWorkspaceFromSheets(url, activeUserRef.current);
-              const remoteMatch = workspace.leads.find((l) => l.id === candidateLead.id);
-              const { mergedLead, gainedRemoteLogs } = mergeLeadBeforeSheetPush(
-                candidateLead,
-                remoteMatch,
-                deletedLogIdsRef.current
-              );
-              candidateLead = mergedLead;
-              if (gainedRemoteLogs) {
-                commitLeads((prev) =>
-                  prev.map((l) => (l.id === mergedLead.id ? mergedLead : l))
-                );
-              }
-            } catch {
-              // If pre-merge GET fails transiently, proceed with local candidate so save is never dropped
+            const cachedRemote = lastRemoteLeadsByIdRef.current.get(candidateLocal.id);
+            const { mergedLead, gainedRemoteLogs } = mergeLeadBeforeSheetPush(
+              candidateLocal,
+              cachedRemote,
+              deletedLogIdsRef.current
+            );
+            if (gainedRemoteLogs) {
+              commitLeads((prev) => prev.map((l) => (l.id === mergedLead.id ? mergedLead : l)));
             }
-            payloadToSend = { action: 'update', lead: candidateLead };
+            payloadToSend = { action: 'update', lead: mergedLead };
           }
 
           await postToSheets(url, payloadToSend);
 
-          if (payloadToSend.action === 'update') {
-            const healedId = payloadToSend.lead.id;
+          if (payloadToSend.action === 'create' || payloadToSend.action === 'update') {
+            const savedLead = payloadToSend.lead;
+            lastRemoteLeadsByIdRef.current.set(savedLead.id, savedLead);
             setCorruptedRemoteLogIds((prev) => {
-              if (!prev.has(healedId)) return prev;
+              if (!prev.has(savedLead.id)) return prev;
               const next = new Set(prev);
-              next.delete(healedId);
+              next.delete(savedLead.id);
               return next;
             });
+
+            // Non-blocking check for concurrent partner logs added right before our write
+            if (payloadToSend.action === 'update') {
+              try {
+                const workspace = await fetchWorkspaceFromSheets(url, activeUserRef.current);
+                if (workspace.leads.length > 0) {
+                  lastRemoteLeadsByIdRef.current = new Map(
+                    workspace.leads.map((l) => [l.id, l])
+                  );
+                  const remoteMatch = workspace.leads.find((l) => l.id === savedLead.id);
+                  const latestLocal =
+                    leadsRef.current.find((l) => l.id === savedLead.id) ?? savedLead;
+                  const { mergedLead, gainedRemoteLogs } = mergeLeadBeforeSheetPush(
+                    latestLocal,
+                    remoteMatch,
+                    deletedLogIdsRef.current
+                  );
+                  if (gainedRemoteLogs) {
+                    commitLeads((prev) =>
+                      prev.map((l) => (l.id === mergedLead.id ? mergedLead : l))
+                    );
+                    await postToSheets(url, { action: 'update', lead: mergedLead });
+                    lastRemoteLeadsByIdRef.current.set(mergedLead.id, mergedLead);
+                  }
+                }
+              } catch {
+                // Initial POST already succeeded; ignore transient post-write reconcile errors
+              }
+            }
+          } else if (payloadToSend.action === 'delete') {
+            lastRemoteLeadsByIdRef.current.delete(payloadToSend.id);
           }
 
           lastLocalMutationAtRef.current = Date.now();
           setSettings((prev) => ({ ...prev, lastSyncedAt: new Date().toISOString() }));
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Falha na conexão';
-          pushToast(`Salvo localmente, mas erro ao sincronizar: ${msg}`, 'error');
+          if (
+            payload.action === 'syncSettings' &&
+            msg.toLowerCase().includes('ação desconhecida: syncsettings')
+          ) {
+            pushToast(
+              'Configurações salvas localmente. Atualize o Code.gs na planilha para sincronizar logo e sócios.',
+              'info'
+            );
+          } else {
+            pushToast(`Salvo localmente, mas erro ao enviar para a planilha: ${msg}`, 'error');
+          }
         } finally {
           isSavingRef.current = false;
           setIsSavingToSheets(false);
@@ -270,6 +319,7 @@ export function useCrmStore() {
           return;
         }
         if (workspace.leads.length > 0) {
+          lastRemoteLeadsByIdRef.current = new Map(workspace.leads.map((l) => [l.id, l]));
           const unparsedSet = new Set(workspace.unparsedServiceLogIds);
           const localBefore = leadsRef.current;
           commitLeads((prev) =>
@@ -576,12 +626,16 @@ export function useCrmStore() {
         };
 
         const currentLocalLeads = leadsRef.current;
+        if (remoteLeads.length > 0) {
+          lastRemoteLeadsByIdRef.current = new Map(remoteLeads.map((l) => [l.id, l]));
+        }
         if (remoteLeads.length === 0 && currentLocalLeads.length > 0) {
           await postToSheets(targetUrl, {
             action: 'syncAll',
             leads: currentLocalLeads,
             settings: remoteSettings ? undefined : currentSettingsPayload,
           });
+          lastRemoteLeadsByIdRef.current = new Map(currentLocalLeads.map((l) => [l.id, l]));
           successMessage = 'Planilha conectada e leads iniciais enviados!';
           pushToast(successMessage, 'success');
         } else {
@@ -671,6 +725,7 @@ export function useCrmStore() {
             teamMembers: settings.teamMembers,
           },
         });
+        lastRemoteLeadsByIdRef.current = new Map(leadsToPush.map((l) => [l.id, l]));
         setCorruptedRemoteLogIds(new Set());
         lastLocalMutationAtRef.current = Date.now();
         setSettings((prev) => ({

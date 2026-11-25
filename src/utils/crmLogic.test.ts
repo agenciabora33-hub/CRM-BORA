@@ -8,6 +8,7 @@ import {
   formatCurrencyBRL,
   formatDateBR,
   generateCsvContent,
+  getFollowUpAlerts,
   getFollowUpUrgency,
   mergeLeadBeforeSheetPush,
   mergeLocalMutationWithLatest,
@@ -92,6 +93,58 @@ test('follow-up urgency classifies overdue, today, upcoming, and closed leads', 
   assert.equal(getFollowUpUrgency('2026-11-25', 'Para Prospectar', refDate), 'future');
   assert.equal(getFollowUpUrgency('2026-11-05', 'Fechado (Ganho)', refDate), 'none');
   assert.equal(getFollowUpUrgency('2026-11-05', 'Perdido', refDate), 'none');
+});
+
+test('getFollowUpAlerts separates overdue and today leads, sorts cleanly, and ignores closed/future leads', () => {
+  const leadsForAlerts: Lead[] = [
+    ...sampleLeads,
+    {
+      ...sampleLeads[0],
+      id: '4',
+      companyName: 'Alfa Odonto',
+      status: 'Para Prospectar',
+      nextFollowUp: '2026-11-13',
+    },
+    {
+      ...sampleLeads[0],
+      id: '5',
+      companyName: 'Zebra Imóveis',
+      status: 'Interesse / Conversa',
+      nextFollowUp: '2026-11-09',
+    },
+    {
+      ...sampleLeads[0],
+      id: '6',
+      companyName: 'Perdido Antigo',
+      status: 'Perdido',
+      nextFollowUp: '2026-11-02',
+    },
+    {
+      ...sampleLeads[0],
+      id: '7',
+      companyName: 'Futuro Ltda',
+      status: 'Para Prospectar',
+      nextFollowUp: '2026-11-20',
+    },
+    {
+      ...sampleLeads[0],
+      id: '8',
+      companyName: 'Sem Data',
+      status: 'Para Prospectar',
+      nextFollowUp: '',
+    },
+  ];
+
+  const alerts = getFollowUpAlerts(leadsForAlerts, refDate);
+  assert.equal(alerts.totalCount, 4);
+  assert.deepEqual(
+    alerts.overdue.map((l) => l.id),
+    ['5', '2']
+  );
+  assert.deepEqual(
+    alerts.today.map((l) => l.id),
+    ['4', '1']
+  );
 });
 
 test('WhatsApp URL normalizes Brazilian phone numbers cleanly', () => {

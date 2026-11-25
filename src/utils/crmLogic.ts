@@ -60,6 +60,38 @@ export function getFollowUpUrgency(
   return 'future';
 }
 
+export interface FollowUpAlertsResult {
+  overdue: Lead[];
+  today: Lead[];
+  totalCount: number;
+}
+
+export function getFollowUpAlerts(
+  leads: Lead[],
+  referenceDate: Date = new Date()
+): FollowUpAlertsResult {
+  const overdue: Lead[] = [];
+  const today: Lead[] = [];
+
+  for (const lead of leads) {
+    const urgency = getFollowUpUrgency(lead.nextFollowUp, lead.status, referenceDate);
+    if (urgency === 'overdue') {
+      overdue.push(lead);
+    } else if (urgency === 'today') {
+      today.push(lead);
+    }
+  }
+
+  overdue.sort((a, b) => a.nextFollowUp.localeCompare(b.nextFollowUp) || a.companyName.localeCompare(b.companyName));
+  today.sort((a, b) => a.companyName.localeCompare(b.companyName));
+
+  return {
+    overdue,
+    today,
+    totalCount: overdue.length + today.length,
+  };
+}
+
 export function buildWhatsAppUrl(phone: string): string | null {
   const digits = phone.replace(/\D/g, '');
   if (digits.length < 8) return null;

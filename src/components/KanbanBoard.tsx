@@ -199,8 +199,8 @@ export function KanbanBoard({
         </div>
       </div>
 
-      {/* Horizontal 6-Column Kanban Grid */}
-      <div className="kanban-scroll flex gap-3 overflow-x-auto pb-4 items-start">
+      {/* Responsive 6-Column Kanban Grid (all 6 stages visible simultaneously on lg+ without horizontal scroll) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 items-start pb-4">
         {LEAD_STATUSES.map((status) => {
           const columnLeads = visibleLeads.filter((l) => l.status === status);
           const columnTotalValue = columnLeads.reduce(
@@ -216,31 +216,34 @@ export function KanbanBoard({
               onDragOver={(e) => handleDragOver(e, status)}
               onDragLeave={() => setDragOverColumn((prev) => (prev === status ? null : prev))}
               onDrop={(e) => handleDrop(e, status)}
-              className={`w-[268px] sm:w-[272px] shrink-0 rounded-xl border p-3 flex flex-col gap-3 transition-colors duration-150 ${
+              className={`w-full min-w-0 rounded-xl border p-2.5 flex flex-col gap-2.5 transition-colors duration-150 ${
                 isDropTarget
                   ? 'bg-orange-950/30 border-orange-500/60'
                   : 'bg-[#111114] border-zinc-800'
               }`}
             >
               {/* Column Header */}
-              <div className="flex items-start justify-between gap-2 px-0.5">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between gap-1.5 px-0.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
                       aria-hidden="true"
                       className={`h-2 w-2 rounded-xs shrink-0 ${STAGE_DOT_COLORS[status]}`}
                     />
-                    <h2 className="font-display text-sm font-semibold tracking-tight text-zinc-100 truncate">
+                    <h2
+                      title={status}
+                      className="font-display text-xs xl:text-sm font-semibold tracking-tight text-zinc-100 truncate"
+                    >
                       {status}
                     </h2>
                   </div>
-                  <p className="font-mono tabular-nums text-xs text-zinc-400 mt-0.5 pl-4">
+                  <p className="font-mono tabular-nums text-[11px] xl:text-xs text-zinc-400 mt-0.5 pl-3.5 truncate">
                     {formatCurrencyBRL(columnTotalValue)}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="font-mono tabular-nums text-xs font-semibold text-zinc-300 bg-[#09090B] border border-zinc-800 rounded px-1.5 py-0.5">
+                  <span className="font-mono tabular-nums text-[11px] font-semibold text-zinc-300 bg-[#09090B] border border-zinc-800 rounded px-1.5 py-0.5">
                     {columnLeads.length}
                   </span>
                   <button

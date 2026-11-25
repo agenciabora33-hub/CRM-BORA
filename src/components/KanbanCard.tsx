@@ -47,21 +47,21 @@ export function KanbanCard({
       draggable
       onDragStart={(e) => onDragStart(e, lead.id)}
       data-testid={`kanban-card-${lead.id}`}
-      className="group rounded-lg bg-[#18181B] border border-zinc-800 p-3.5 hover:border-zinc-700 transition-colors duration-150 cursor-grab active:cursor-grabbing flex flex-col gap-2.5"
+      className="group rounded-lg bg-[#18181B] border border-zinc-800 p-2.5 xl:p-3 hover:border-zinc-700 transition-colors duration-150 cursor-grab active:cursor-grabbing flex flex-col gap-2 min-w-0"
     >
       {/* Top: Title button + clean unboxed metadata line */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-start justify-between gap-1.5 min-w-0">
           <button
             type="button"
             onClick={() => onSelect(lead)}
             aria-label={`Abrir detalhes de ${lead.companyName}`}
-            className="text-left font-display font-semibold text-sm text-zinc-100 hover:text-orange-400 transition-colors leading-snug line-clamp-2 cursor-pointer"
+            className="text-left font-display font-semibold text-xs xl:text-sm text-zinc-100 hover:text-orange-400 transition-colors leading-snug line-clamp-2 cursor-pointer min-w-0"
           >
             {lead.companyName}
           </button>
           {lead.estimatedValue > 0 && (
-            <span className="font-mono tabular-nums text-xs font-medium text-zinc-200 shrink-0">
+            <span className="font-mono tabular-nums text-[11px] xl:text-xs font-medium text-zinc-200 shrink-0">
               {formatCurrencyBRL(lead.estimatedValue)}
             </span>
           )}
@@ -131,18 +131,18 @@ export function KanbanCard({
       )}
 
       {/* Footer Quick Actions */}
-      <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
+      <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-1.5 min-w-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => onIncrementCall(lead.id)}
             aria-label={`+1 Ligação para ${lead.companyName}`}
             title="Registrar +1 ligação"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium bg-[#09090B] hover:bg-orange-500/15 text-zinc-100 hover:text-orange-300 border border-zinc-800 hover:border-orange-500/40 transition-colors cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[11px] xl:text-xs font-medium bg-[#09090B] hover:bg-orange-500/15 text-zinc-100 hover:text-orange-300 border border-zinc-800 hover:border-orange-500/40 transition-colors cursor-pointer whitespace-nowrap"
           >
-            <Phone className="h-3 w-3" />
+            <Phone className="h-3 w-3 shrink-0" />
             <span className="font-mono tabular-nums">{lead.callCount}</span>
-            <span className="text-[11px] text-zinc-400">+1</span>
+            <span className="text-[10px] text-zinc-400">+1</span>
           </button>
 
           {whatsappUrl && (
@@ -152,7 +152,7 @@ export function KanbanCard({
               rel="noopener noreferrer"
               aria-label={`Abrir WhatsApp de ${lead.companyName}`}
               title={`WhatsApp: ${lead.phone}`}
-              className="inline-flex items-center justify-center rounded p-1.5 text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition-colors"
+              className="inline-flex items-center justify-center rounded p-1.5 text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition-colors shrink-0"
             >
               <MessageCircle className="h-3.5 w-3.5" />
             </a>
@@ -163,7 +163,7 @@ export function KanbanCard({
           aria-label={`Mover etapa de ${lead.companyName}`}
           value={lead.status}
           onChange={(e) => onMoveStatus(lead.id, e.target.value as LeadStatus)}
-          className="max-w-[122px] truncate rounded border border-zinc-800 bg-[#09090B] px-1.5 py-1 text-[11px] font-medium text-zinc-300 hover:text-zinc-100 focus:outline-none focus:border-orange-500 cursor-pointer"
+          className="min-w-0 flex-1 truncate rounded border border-zinc-800 bg-[#09090B] px-1.5 py-1 text-[11px] font-medium text-zinc-300 hover:text-zinc-100 focus:outline-none focus:border-orange-500 cursor-pointer"
         >
           {LEAD_STATUSES.map((st) => (
             <option key={st} value={st} className="bg-[#18181B] text-zinc-100">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DashboardView } from './components/DashboardView';
+import { FollowUpAlertBar } from './components/FollowUpAlertBar';
 import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
 import { LeadDetailDrawer } from './components/LeadDetailDrawer';
@@ -64,6 +65,7 @@ export default function App() {
         settings={settings}
         isConnected={isConnected}
         isSyncing={isSyncing}
+        isSavingToSheets={isSavingToSheets}
         onChangeActiveUser={setActiveUser}
         onManualSync={() => {
           void syncFromSheets();
@@ -72,7 +74,9 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <main className="flex-1 max-w-[1600px] w-full min-w-0 mx-auto px-4 sm:px-6 pt-28 md:pt-20 pb-6">
+      <main className="flex-1 max-w-[1760px] w-full min-w-0 mx-auto px-3 sm:px-5 pt-28 md:pt-20 pb-6">
+        <FollowUpAlertBar leads={leads} onSelectLead={handleSelectLead} />
+
         {activeView === 'kanban' && (
           <KanbanBoard
             leads={leads}
