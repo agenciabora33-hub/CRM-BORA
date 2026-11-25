@@ -540,3 +540,50 @@ export function mergeLeadBeforeSheetPush(
   };
 }
 
+export function mergeLocalMutationWithLatest(
+  queuedLead: Lead,
+  currentStoreLead: Lead | undefined,
+  deletedLogIds?: ReadonlySet<string>
+): Lead {
+  const queuedLogs = (Array.isArray(queuedLead.serviceLogs) ? queuedLead.serviceLogs : []).filter(
+    (l) => !deletedLogIds?.has(l.id)
+  );
+  if (!currentStoreLead) {
+    return { ...queuedLead, serviceLogs: queuedLogs };
+  }
+
+  const currentLogs = (
+    Array.isArray(currentStoreLead.serviceLogs) ? currentStoreLead.serviceLogs : []
+  ).filter((l) => !deletedLogIds?.has(l.id));
+
+  const queuedTs = Date.parse(queuedLead.updatedAt || '') || 0;
+  const currentTs = Date.parse(currentStoreLead.updatedAt || '') || 0;
+
+  if (currentTs > queuedTs) {
+    const mergedLogs = mergeServiceLogsById(currentLogs, queuedLogs, deletedLogIds);
+    const currentIds = new Set(currentLogs.map((l) => l.id));
+    const addedCount = mergedLogs.filter((l) => !currentIds.has(l.id)).length;
+    return {
+      ...currentStoreLead,
+      serviceLogs: mergedLogs,
+      callCount:
+        addedCount > 0
+          ? Math.max(Number(currentStoreLead.callCount) || 0, Number(queuedLead.callCount) || 0, mergedLogs.length)
+          : Number(currentStoreLead.callCount) || 0,
+    };
+  }
+
+  const mergedLogs = mergeServiceLogsById(queuedLogs, currentLogs, deletedLogIds);
+  const queuedIds = new Set(queuedLogs.map((l) => l.id));
+  const addedCount = mergedLogs.filter((l) => !queuedIds.has(l.id)).length;
+  return {
+    ...queuedLead,
+    serviceLogs: mergedLogs,
+    callCount:
+      addedCount > 0
+        ? Math.max(Number(queuedLead.callCount) || 0, Number(currentStoreLead.callCount) || 0, mergedLogs.length)
+        : Number(queuedLead.callCount) || 0,
+  };
+}
+
+

@@ -10,6 +10,7 @@ import {
   generateCsvContent,
   getFollowUpUrgency,
   mergeLeadBeforeSheetPush,
+  mergeLocalMutationWithLatest,
   mergeRemoteLeads,
   normalizeExternalUrl,
   normalizeLeadFromRemote,
@@ -344,5 +345,84 @@ test('mergeLeadBeforeSheetPush merges remote partner serviceLogs without overwri
     ['log-claudio']
   );
 });
+
+test('mergeLocalMutationWithLatest never loses newly saved logs against stale store snapshot and merges concurrent updates', () => {
+  const oldLog = {
+    id: 'log-old',
+    timestamp: '24/11/2026 10:00',
+    author: 'Cláudio',
+    contactType: 'Ligação' as const,
+    targetStatus: 'Contato Feito' as const,
+    content: 'Primeiro contato.',
+  };
+  const newLog = {
+    id: 'log-new',
+    timestamp: '25/11/2026 09:30',
+    author: 'Cláudio',
+    contactType: 'WhatsApp' as const,
+    targetStatus: 'Reunião / Proposta' as const,
+    content: 'Atendimento real salvo no Sheets.',
+  };
+  const storeExtraLog = {
+    id: 'log-partner-sync',
+    timestamp: '25/11/2026 09:31',
+    author: 'Elis',
+    contactType: 'Pessoal' as const,
+    targetStatus: 'Reunião / Proposta' as const,
+    content: 'Visita confirmada pela Elis.',
+  };
+
+  // Case 1: Stale store snapshot before React render (queuedLead is newer and contains newLog)
+  const queuedLead: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-25T09:30:05.000Z',
+    callCount: 2,
+    status: 'Reunião / Proposta',
+    serviceLogs: [newLog, oldLog],
+  };
+  const staleStoreLead: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-24T10:00:00.000Z',
+    callCount: 1,
+    status: 'Contato Feito',
+    serviceLogs: [oldLog],
+  };
+  const mergedStale = mergeLocalMutationWithLatest(queuedLead, staleStoreLead, new Set());
+  assert.equal(mergedStale.status, 'Reunião / Proposta');
+  assert.equal(mergedStale.callCount, 2);
+  assert.deepEqual(
+    mergedStale.serviceLogs?.map((l) => l.id),
+    ['log-new', 'log-old']
+  );
+
+  // Case 2: Store lead became newer (e.g. partner log merged while queued), keep newer fields AND both logs
+  const newerStoreLead: Lead = {
+    ...sampleLeads[0],
+    updatedAt: '2026-11-25T09:31:00.000Z',
+    callCount: 2,
+    status: 'Reunião / Proposta',
+    notes: 'Atualizado pela Elis',
+    serviceLogs: [storeExtraLog, oldLog],
+  };
+  const mergedNewerStore = mergeLocalMutationWithLatest(queuedLead, newerStoreLead, new Set());
+  assert.equal(mergedNewerStore.notes, 'Atualizado pela Elis');
+  assert.equal(mergedNewerStore.callCount, 3);
+  assert.deepEqual(
+    mergedNewerStore.serviceLogs?.map((l) => l.id),
+    ['log-partner-sync', 'log-old', 'log-new']
+  );
+
+  // Case 3: deletedLogIds excludes intentionally deleted logs from both snapshots
+  const mergedWithDelete = mergeLocalMutationWithLatest(
+    queuedLead,
+    newerStoreLead,
+    new Set(['log-old', 'log-partner-sync'])
+  );
+  assert.deepEqual(
+    mergedWithDelete.serviceLogs?.map((l) => l.id),
+    ['log-new']
+  );
+});
+
 
 

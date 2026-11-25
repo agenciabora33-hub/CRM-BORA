@@ -4,6 +4,7 @@ import { AgencySettings, Lead, LeadStatus, ServiceLog, ToastMessage } from '../t
 import {
   generateUuid,
   mergeLeadBeforeSheetPush,
+  mergeLocalMutationWithLatest,
   mergeRemoteLeads,
   parseServiceLogsValue,
 } from '../utils/crmLogic';
@@ -108,15 +109,22 @@ export function useCrmStore() {
   const [corruptedRemoteLogIds, setCorruptedRemoteLogIds] = useState<Set<string>>(() => new Set());
 
   const isSyncingRef = useRef(false);
+  const isSavingRef = useRef(false);
   const lastLocalMutationAtRef = useRef(0);
   const lastOpenRefreshAtRef = useRef(0);
   const leadsRef = useRef<Lead[]>(leads);
-  leadsRef.current = leads;
   const activeUserRef = useRef(settings.activeUser);
   activeUserRef.current = settings.activeUser;
   const deletedLogIdsRef = useRef<Set<string>>(new Set());
   const syncWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isConnected = isValidAppsScriptUrl(settings.appsScriptUrl);
+
+  const commitLeads = useCallback((updater: Lead[] | ((prev: Lead[]) => Lead[])) => {
+    const next = typeof updater === 'function' ? updater(leadsRef.current) : updater;
+    leadsRef.current = next;
+    setLeads(next);
+    return next;
+  }, []);
 
   const pushToast = useCallback((message: string, variant: ToastMessage['variant'] = 'success') => {
     const id = generateUuid();
@@ -157,28 +165,33 @@ export function useCrmStore() {
       if (!isValidAppsScriptUrl(url)) return Promise.resolve();
 
       const run = async () => {
+        isSavingRef.current = true;
         setIsSavingToSheets(true);
         try {
           let payloadToSend = payload;
           if (payload.action === 'update') {
-            const latestLocal = leadsRef.current.find((l) => l.id === payload.lead.id) ?? payload.lead;
-            let candidateLead = latestLocal;
+            const currentInStore = leadsRef.current.find((l) => l.id === payload.lead.id);
+            let candidateLead = mergeLocalMutationWithLatest(
+              payload.lead,
+              currentInStore,
+              deletedLogIdsRef.current
+            );
             try {
               const workspace = await fetchWorkspaceFromSheets(url, activeUserRef.current);
-              const remoteMatch = workspace.leads.find((l) => l.id === latestLocal.id);
+              const remoteMatch = workspace.leads.find((l) => l.id === candidateLead.id);
               const { mergedLead, gainedRemoteLogs } = mergeLeadBeforeSheetPush(
-                latestLocal,
+                candidateLead,
                 remoteMatch,
                 deletedLogIdsRef.current
               );
               candidateLead = mergedLead;
               if (gainedRemoteLogs) {
-                setLeads((prev) =>
+                commitLeads((prev) =>
                   prev.map((l) => (l.id === mergedLead.id ? mergedLead : l))
                 );
               }
             } catch {
-              // If pre-merge GET fails transiently, proceed with local state so save is never dropped
+              // If pre-merge GET fails transiently, proceed with local candidate so save is never dropped
             }
             payloadToSend = { action: 'update', lead: candidateLead };
           }
@@ -201,6 +214,7 @@ export function useCrmStore() {
           const msg = err instanceof Error ? err.message : 'Falha na conexão';
           pushToast(`Salvo localmente, mas erro ao sincronizar: ${msg}`, 'error');
         } finally {
+          isSavingRef.current = false;
           setIsSavingToSheets(false);
         }
       };
@@ -209,7 +223,7 @@ export function useCrmStore() {
       syncWriteQueueRef.current = nextPromise;
       return nextPromise;
     },
-    [pushToast]
+    [commitLeads, pushToast]
   );
 
   const reconcileCorruptedRemoteLogs = useCallback(
@@ -239,7 +253,12 @@ export function useCrmStore() {
     ) => {
       if (!isValidAppsScriptUrl(targetUrl)) return;
       if (isSyncingRef.current) return;
-      if (!options?.ignoreGrace && Date.now() - lastLocalMutationAtRef.current < MUTATION_GRACE_MS) return;
+      if (!options?.ignoreGrace) {
+        if (isSavingRef.current) return;
+        if (Date.now() - lastLocalMutationAtRef.current < MUTATION_GRACE_MS) return;
+      } else {
+        await syncWriteQueueRef.current.catch(() => undefined);
+      }
 
       const startedAt = Date.now();
       isSyncingRef.current = true;
@@ -253,7 +272,7 @@ export function useCrmStore() {
         if (workspace.leads.length > 0) {
           const unparsedSet = new Set(workspace.unparsedServiceLogIds);
           const localBefore = leadsRef.current;
-          setLeads((prev) =>
+          commitLeads((prev) =>
             mergeRemoteLeads(prev, workspace.leads, workspace.hasServiceLogsColumn, {
               deletedLogIds: deletedLogIdsRef.current,
               unparsedServiceLogIds: unparsedSet,
@@ -272,7 +291,7 @@ export function useCrmStore() {
         setIsSyncing(false);
       }
     },
-    [pushToast, reconcileCorruptedRemoteLogs]
+    [commitLeads, pushToast, reconcileCorruptedRemoteLogs]
   );
 
   // Initial background fetch when connected on mount
@@ -330,12 +349,12 @@ export function useCrmStore() {
         serviceLogs: [],
       };
 
-      setLeads((prev) => [newLead, ...prev]);
+      commitLeads((prev) => [newLead, ...prev]);
       pushToast('Lead salvo!', 'success');
       void syncInBackground(settings.appsScriptUrl, { action: 'create', lead: newLead });
       return newLead;
     },
-    [pushToast, settings.activeUser, settings.appsScriptUrl, syncInBackground]
+    [commitLeads, pushToast, settings.activeUser, settings.appsScriptUrl, syncInBackground]
   );
 
   const updateLead = useCallback(
@@ -360,18 +379,18 @@ export function useCrmStore() {
         serviceLogs: nextLogs,
         updatedAt: new Date().toISOString(),
       };
-      setLeads((prev) => prev.map((l) => (l.id === stamped.id ? stamped : l)));
+      commitLeads((prev) => prev.map((l) => (l.id === stamped.id ? stamped : l)));
       if (toastLabel) {
         pushToast(toastLabel, 'success');
       }
       void syncInBackground(settings.appsScriptUrl, { action: 'update', lead: stamped });
     },
-    [pushToast, settings.appsScriptUrl, syncInBackground]
+    [commitLeads, pushToast, settings.appsScriptUrl, syncInBackground]
   );
 
   const moveLeadStatus = useCallback(
     (leadId: string, nextStatus: LeadStatus) => {
-      const existing = leads.find((l) => l.id === leadId);
+      const existing = leadsRef.current.find((l) => l.id === leadId);
       if (!existing || existing.status === nextStatus) return;
 
       lastLocalMutationAtRef.current = Date.now();
@@ -381,16 +400,16 @@ export function useCrmStore() {
         updatedAt: new Date().toISOString(),
       };
 
-      setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)));
+      commitLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)));
       pushToast(`Movido para "${nextStatus}"`, 'info');
       void syncInBackground(settings.appsScriptUrl, { action: 'update', lead: updatedLead });
     },
-    [leads, pushToast, settings.appsScriptUrl, syncInBackground]
+    [commitLeads, pushToast, settings.appsScriptUrl, syncInBackground]
   );
 
   const incrementCall = useCallback(
     (leadId: string) => {
-      const existing = leads.find((l) => l.id === leadId);
+      const existing = leadsRef.current.find((l) => l.id === leadId);
       if (!existing) return;
 
       lastLocalMutationAtRef.current = Date.now();
@@ -419,21 +438,21 @@ export function useCrmStore() {
         updatedAt: now.toISOString(),
       };
 
-      setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)));
+      commitLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)));
       pushToast('+1 ligação registrada nos registros de atendimento', 'success');
       void syncInBackground(settings.appsScriptUrl, { action: 'update', lead: updatedLead });
     },
-    [leads, pushToast, settings.activeUser, settings.appsScriptUrl, syncInBackground]
+    [commitLeads, pushToast, settings.activeUser, settings.appsScriptUrl, syncInBackground]
   );
 
   const deleteLead = useCallback(
     (leadId: string) => {
       lastLocalMutationAtRef.current = Date.now();
-      setLeads((prev) => prev.filter((l) => l.id !== leadId));
+      commitLeads((prev) => prev.filter((l) => l.id !== leadId));
       pushToast('Lead excluído', 'info');
       void syncInBackground(settings.appsScriptUrl, { action: 'delete', id: leadId });
     },
-    [pushToast, settings.appsScriptUrl, syncInBackground]
+    [commitLeads, pushToast, settings.appsScriptUrl, syncInBackground]
   );
 
   const setActiveUser = useCallback(
@@ -484,7 +503,7 @@ export function useCrmStore() {
         const anyRenamed = renamed.some((l, idx) => l !== leads[idx]);
         if (anyRenamed) {
           updatedLeadsSnapshot = renamed;
-          setLeads(renamed);
+          commitLeads(renamed);
         }
       }
 
@@ -531,7 +550,7 @@ export function useCrmStore() {
         }
       }
     },
-    [leads, pushToast, settings.appsScriptUrl, settings.companyName, settings.logoUrl, settings.teamMembers, syncInBackground]
+    [commitLeads, leads, pushToast, settings.appsScriptUrl, settings.companyName, settings.logoUrl, settings.teamMembers, syncInBackground]
   );
 
   const syncFromSheets = useCallback(
@@ -542,6 +561,7 @@ export function useCrmStore() {
         pushToast(message, 'error');
         return { ok: false, message };
       }
+      await syncWriteQueueRef.current.catch(() => undefined);
       isSyncingRef.current = true;
       setIsSyncing(true);
       try {
@@ -555,10 +575,11 @@ export function useCrmStore() {
           teamMembers: settings.teamMembers,
         };
 
-        if (remoteLeads.length === 0 && leads.length > 0) {
+        const currentLocalLeads = leadsRef.current;
+        if (remoteLeads.length === 0 && currentLocalLeads.length > 0) {
           await postToSheets(targetUrl, {
             action: 'syncAll',
-            leads,
+            leads: currentLocalLeads,
             settings: remoteSettings ? undefined : currentSettingsPayload,
           });
           successMessage = 'Planilha conectada e leads iniciais enviados!';
@@ -566,7 +587,7 @@ export function useCrmStore() {
         } else {
           const unparsedSet = new Set(workspace.unparsedServiceLogIds);
           const localBefore = leadsRef.current;
-          setLeads((prev) =>
+          commitLeads((prev) =>
             mergeRemoteLeads(prev, remoteLeads, workspace.hasServiceLogsColumn, {
               deletedLogIds: deletedLogIdsRef.current,
               unparsedServiceLogIds: unparsedSet,
@@ -600,7 +621,7 @@ export function useCrmStore() {
       }
     },
     [
-      leads,
+      commitLeads,
       pushToast,
       reconcileCorruptedRemoteLogs,
       settings.activeUser,
@@ -619,18 +640,39 @@ export function useCrmStore() {
         pushToast(message, 'error');
         return { ok: false, message };
       }
+      await syncWriteQueueRef.current.catch(() => undefined);
       isSyncingRef.current = true;
       setIsSyncing(true);
       try {
+        let leadsToPush = leadsRef.current;
+        try {
+          const workspace = await fetchWorkspaceFromSheets(targetUrl, settings.activeUser);
+          if (workspace.leads.length > 0) {
+            const remoteById = new Map(workspace.leads.map((l) => [l.id, l]));
+            const mergedLocal = leadsRef.current.map((local) => {
+              const remote = remoteById.get(local.id);
+              return mergeLeadBeforeSheetPush(local, remote, deletedLogIdsRef.current).mergedLead;
+            });
+            const localIds = new Set(mergedLocal.map((l) => l.id));
+            const remoteOnly = workspace.leads.filter((r) => !localIds.has(r.id));
+            leadsToPush = [...mergedLocal, ...remoteOnly];
+            commitLeads(leadsToPush);
+          }
+        } catch {
+          // If pre-merge fetch fails transiently, push local state
+        }
+
         await postToSheets(targetUrl, {
           action: 'syncAll',
-          leads,
+          leads: leadsToPush,
           settings: {
             companyName: settings.companyName,
             logoUrl: settings.logoUrl,
             teamMembers: settings.teamMembers,
           },
         });
+        setCorruptedRemoteLogIds(new Set());
+        lastLocalMutationAtRef.current = Date.now();
         setSettings((prev) => ({
           ...prev,
           appsScriptUrl: targetUrl,
@@ -650,8 +692,9 @@ export function useCrmStore() {
       }
     },
     [
-      leads,
+      commitLeads,
       pushToast,
+      settings.activeUser,
       settings.appsScriptUrl,
       settings.companyName,
       settings.logoUrl,
@@ -662,12 +705,12 @@ export function useCrmStore() {
   const resetDemoData = useCallback(() => {
     lastLocalMutationAtRef.current = Date.now();
     const fresh = createSeedLeads();
-    setLeads(fresh);
+    commitLeads(fresh);
     pushToast('Leads de exemplo restaurados!', 'info');
     if (isValidAppsScriptUrl(settings.appsScriptUrl)) {
       void syncInBackground(settings.appsScriptUrl, { action: 'syncAll', leads: fresh });
     }
-  }, [pushToast, settings.appsScriptUrl, syncInBackground]);
+  }, [commitLeads, pushToast, settings.appsScriptUrl, syncInBackground]);
 
   const refreshOnLeadOpen = useCallback(() => {
     if (!isValidAppsScriptUrl(settings.appsScriptUrl)) return;
